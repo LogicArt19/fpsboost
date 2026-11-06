@@ -1,6 +1,6 @@
 {
-  "version": 30,
-  "name": "3.0",
+  "version": 31,
+  "name": "3.1",
   "url": "https://github.com/LogicArt19/fpsboost/raw/main/release/FPSBoost.exe",
-  "notes": "• Diagnostic du PC (écran à 60 Hz, RAM, pilote, disque…) + corrections automatiques\n• 1 % low dans l'overlay et sur l'accueil\n• Historique des parties\n• Fermeture auto des applis gourmandes en jeu, relancées après\n• Carte graphique dédiée forcée (PC à 2 cartes graphiques)\n• Moins de latence pour les jeux en fenêtré / sans bordure\n• Ping dans l'overlay, alerte de surchauffe"
+  "notes": "• Correction du compteur de FPS : fini les faux pics à 500-600 FPS\n• FPS calculés d'après l'heure exacte de chaque image (environ 2 s de décalage, mais valeurs justes)\n• 1 % low et historique plus précis"
 }

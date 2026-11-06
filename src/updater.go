@@ -50,13 +50,12 @@ var (
 	updLastCheck time.Time
 )
 
-const releaseNotes = "• Diagnostic du PC : écran bloqué à 60 Hz, RAM (XMP, double canal), pilote graphique, disque… + corrections automatiques\n" +
-	"• 1 % low (mesure des saccades) dans l'overlay et sur l'accueil\n" +
-	"• Historique des parties : FPS moyen, 1 % low, températures max\n" +
-	"• Fermeture automatique des applis gourmandes en jeu, relancées après la partie\n" +
-	"• Carte graphique dédiée forcée sur les PC à 2 cartes graphiques\n" +
-	"• Optimisation Windows des jeux en fenêtré / sans bordure (moins de latence)\n" +
-	"• Ping dans l'overlay, alerte de surchauffe"
+const releaseNotes = "• Correction du compteur de FPS : fini les faux pics à 500-600 FPS.\n" +
+	"   Les FPS sont maintenant calculés d'après l'heure exacte de chaque image\n" +
+	"   (affichage avec environ 2 secondes de décalage, mais valeurs exactes)\n" +
+	"• 1 % low et historique plus précis\n\n" +
+	"Version 3.0 : diagnostic du PC, historique des parties, applis à fermer en jeu,\n" +
+	"carte graphique dédiée forcée, ping dans l'overlay, alerte de surchauffe"
 
 // Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
 const WM_UPDATE_RESULT = WM_APP + 9

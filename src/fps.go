@@ -65,12 +65,12 @@ var (
 	fpsLow1     int
 
 	frameMu     sync.Mutex
-	lastFrameTS int64
-	frameRing   [4096]float32
-	ringN       int
-	ringPos     int
-	frameHist   [2000]uint32 // tranches de 0,1 ms
+	tsRing      [16384]int64 // horodatage exact de chaque image (horloge QPC)
+	tsPos       int
+	tsN         int
+	frameHist   [2000]uint32 // durées des images, tranches de 0,1 ms
 	histTotal   uint64
+	histEnd     int64
 	qpcFreq     float64
 )
 
@@ -82,20 +82,23 @@ func initQPC() {
 	qpcFreq = float64(f)
 }
 
+var pQueryPerformanceCounter = modKernel32.NewProc("QueryPerformanceCounter")
+
+func qpcNow() int64 {
+	var v int64
+	call(pQueryPerformanceCounter, uintptr(unsafe.Pointer(&v)))
+	return v
+}
+
 // 1 % low : moyenne des 1 % d'images les plus lentes, convertie en FPS
-func rollingLow1() int {
-	frameMu.Lock()
-	n := ringN
-	tmp := make([]float32, n)
-	copy(tmp, frameRing[:n])
-	frameMu.Unlock()
-	if n < 100 {
+func low1Of(ft []float32) int {
+	if len(ft) < 100 {
 		return 0
 	}
-	sort.Slice(tmp, func(i, j int) bool { return tmp[i] > tmp[j] })
-	k := n / 100
+	sort.Slice(ft, func(i, j int) bool { return ft[i] > ft[j] })
+	k := len(ft) / 100
 	var sum float32
-	for _, v := range tmp[:k] {
+	for _, v := range ft[:k] {
 		sum += v
 	}
 	if sum <= 0 {
@@ -138,23 +141,11 @@ var etwCb = syscall.NewCallback(func(rec uintptr) uintptr {
 		atomic.AddUint64(&fpsCount, 1)
 		ts := *(*int64)(unsafe.Pointer(rec + 16))
 		frameMu.Lock()
-		if lastFrameTS != 0 && qpcFreq > 0 {
-			ms := float32(float64(ts-lastFrameTS) * 1000 / qpcFreq)
-			if ms > 0 && ms < 1000 {
-				frameRing[ringPos] = ms
-				ringPos = (ringPos + 1) % len(frameRing)
-				if ringN < len(frameRing) {
-					ringN++
-				}
-				b := int(ms * 10)
-				if b >= len(frameHist) {
-					b = len(frameHist) - 1
-				}
-				frameHist[b]++
-				histTotal++
-			}
+		tsRing[tsPos] = ts
+		tsPos = (tsPos + 1) % len(tsRing)
+		if tsN < len(tsRing) {
+			tsN++
 		}
-		lastFrameTS = ts
 		frameMu.Unlock()
 	}
 	return 0
@@ -187,7 +178,8 @@ func fpsReset(pid uint32) {
 	fpsLast, fpsLastCnt = time.Time{}, 0
 	fpsStarted = time.Now()
 	frameMu.Lock()
-	lastFrameTS, ringN, ringPos, histTotal, fpsLow1 = 0, 0, 0, 0, 0
+	tsN, tsPos, histTotal, fpsLow1 = 0, 0, 0, 0
+	histEnd = qpcNow()
 	frameHist = [2000]uint32{}
 	frameMu.Unlock()
 }
@@ -246,21 +238,61 @@ func fpsStop() {
 	fpsValue, fpsAvg = 0, 0
 }
 
-// Appelé chaque seconde depuis l'interface
+// Appelé chaque seconde depuis l'interface.
+// Windows livre les images par paquets (environ 1 fois par seconde) : on ne compte donc pas
+// les images reçues, mais celles réellement affichées dans une fenêtre d'1 seconde,
+// d'après leur horodatage exact, avec 2 s de recul pour être sûr que tout est arrivé.
 func fpsUpdate() {
-	if atomic.LoadUint32(&fpsPid) == 0 {
+	if atomic.LoadUint32(&fpsPid) == 0 || qpcFreq <= 0 {
 		fpsValue = 0
 		return
 	}
-	now := time.Now()
-	c := atomic.LoadUint64(&fpsCount)
-	if !fpsLast.IsZero() {
-		if dt := now.Sub(fpsLast).Seconds(); dt > 0.2 {
-			fpsValue = int(float64(c-fpsLastCnt)/dt + 0.5)
+	end := qpcNow() - int64(2*qpcFreq)
+	start := end - int64(qpcFreq)
+	lowFrom := end - int64(10*qpcFreq)
+
+	frameMu.Lock()
+	ts := make([]int64, tsN)
+	copy(ts, tsRing[:tsN])
+	frameMu.Unlock()
+	sort.Slice(ts, func(i, j int) bool { return ts[i] < ts[j] })
+
+	count := 0
+	var recent []float32
+	frameMu.Lock()
+	for i, t := range ts {
+		if t > end {
+			break
+		}
+		if t > start {
+			count++
+		}
+		if i == 0 {
+			continue
+		}
+		ms := float32(float64(t-ts[i-1]) * 1000 / qpcFreq)
+		if ms <= 0 || ms >= 1000 {
+			continue
+		}
+		if t > lowFrom {
+			recent = append(recent, ms)
+		}
+		if t > histEnd {
+			b := int(ms * 10)
+			if b >= len(frameHist) {
+				b = len(frameHist) - 1
+			}
+			frameHist[b]++
+			histTotal++
 		}
 	}
-	fpsLast, fpsLastCnt = now, c
-	fpsLow1 = rollingLow1()
+	if end > histEnd {
+		histEnd = end
+	}
+	frameMu.Unlock()
+
+	fpsValue = count
+	fpsLow1 = low1Of(recent)
 	if fpsValue > 0 {
 		fpsSum += fpsValue
 		fpsSamples++
