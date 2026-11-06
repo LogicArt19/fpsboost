@@ -178,7 +178,7 @@ func fpsReset(pid uint32) {
 	fpsLast, fpsLastCnt = time.Time{}, 0
 	fpsStarted = time.Now()
 	frameMu.Lock()
-	tsN, tsPos, histTotal, fpsLow1 = 0, 0, 0, 0
+	tsN, tsPos, histTotal, fpsLow1, fpsFluid, fpsStutterMin = 0, 0, 0, 0, 0, 0
 	histEnd = qpcNow()
 	frameHist = [2000]uint32{}
 	frameMu.Unlock()
@@ -259,6 +259,7 @@ func fpsUpdate() {
 
 	count := 0
 	var recent []float32
+	var newFT []float32
 	frameMu.Lock()
 	for i, t := range ts {
 		if t > end {
@@ -278,6 +279,7 @@ func fpsUpdate() {
 			recent = append(recent, ms)
 		}
 		if t > histEnd {
+			newFT = append(newFT, ms)
 			b := int(ms * 10)
 			if b >= len(frameHist) {
 				b = len(frameHist) - 1
@@ -292,12 +294,51 @@ func fpsUpdate() {
 	frameMu.Unlock()
 
 	fpsValue = count
+	// Fluidité : saccades = images 2,5 fois plus longues que la normale
+	if len(recent) >= 100 {
+		sorted := append([]float32(nil), recent...)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		med := sorted[len(sorted)/2]
+		var sum float32
+		st := 0
+		for _, v := range sorted {
+			sum += v
+			if v > med*2.5 && v > med+8 {
+				st++
+			}
+		}
+		for _, v := range newFT {
+			if v > med*2.5 && v > med+8 {
+				sessStutters++
+			}
+		}
+		span := float64(sum) / 60000
+		if span > 0 {
+			fpsStutterMin = int(float64(st)/span + 0.5)
+		}
+		avg := 1000 / (sum / float32(len(sorted)))
+		if l := low1Of(recent); l > 0 && avg > 0 {
+			fpsFluid = clampInt(int(100*float32(l)/avg+0.5), 0, 100)
+		}
+	} else {
+		fpsFluid, fpsStutterMin = 0, 0
+	}
 	fpsLow1 = low1Of(recent)
 	if fpsValue > 0 {
 		fpsSum += fpsValue
 		fpsSamples++
 		fpsAvg = fpsSum / fpsSamples
 	}
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 func itoa(n int) string {

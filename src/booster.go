@@ -76,6 +76,7 @@ type Session struct {
 	TimerSet       bool
 	Bg             []bgRec
 
+	StoppedSvcs []string
 	Closed    []closedApp
 	toKill    []procEntry
 	killDue   time.Time
@@ -220,6 +221,7 @@ func startBoost(p *procEntry) {
 	fpsStart(p.Pid)
 	forceDedicatedGPU(p.Pid, s.Game)
 	closeApps(s)
+	pauseServices(s)
 	if cfg.PowerPlan {
 		boostPower(s)
 	}
@@ -243,6 +245,7 @@ func startBoost(p *procEntry) {
 	s.lastBg, s.lastPurge = now, now
 	sess = s
 	saveJSON("session.json", s)
+	sessStutters = 0
 	cfg.GamesBoosted++
 	saveConfig()
 	addLog("✔ BOOST ACTIF sur " + s.Game)
@@ -289,8 +292,21 @@ func endBoost(quiet bool) {
 	low1 := sessionLow1()
 	fpsStop()
 	relaunchApps(s)
+	resumeServices(s)
+	fluidFinal := 0
+	if fpsAvgFinal > 0 && low1 > 0 {
+		fluidFinal = clampInt(100*low1/fpsAvgFinal, 0, 100)
+	}
 	if !quiet && time.Since(s.Start) >= time.Minute {
-		addHistory(HistEntry{s.Game, s.Start, int(time.Since(s.Start).Minutes()), fpsAvgFinal, low1, int(s.cpuMax), int(s.gpuMax)})
+		mins := int(time.Since(s.Start).Minutes())
+		stm := 0
+		if mins > 0 {
+			stm = sessStutters / mins
+		}
+		addHistory(HistEntry{s.Game, s.Start, mins, fpsAvgFinal, low1, int(s.cpuMax), int(s.gpuMax), fluidFinal, stm})
+		if adv := capAdvice(history[len(history)-1]); adv != "" {
+			addLog("► " + adv)
+		}
 	}
 	os.Remove(dataFile("session.json"))
 	sess = nil
@@ -311,6 +327,7 @@ func recoverSession() {
 	if !loadJSON("session.json", &s) {
 		return
 	}
+	resumeServices(&s)
 	sess = &s
 	endBoost(true)
 	addLog("Réglages de la session précédente restaurés")
@@ -353,13 +370,8 @@ func tick() {
 				saveJSON("session.json", sess)
 			}
 		}
-		if cfg.RamClean && now.Sub(sess.lastPurge) > 10*time.Minute {
-			sess.lastPurge = now
-			if memStatus().MemoryLoad >= 75 {
-				if mb, ok := purgeStandby(); ok {
-					addLog(fmt.Sprintf("   RAM optimisée : %d Mo libérés", mb))
-				}
-			}
+		if cfg.RamClean {
+			smartPurge(sess)
 		}
 		return
 	}

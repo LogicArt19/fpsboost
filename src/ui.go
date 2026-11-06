@@ -153,9 +153,10 @@ func initToggles() {
 	toggles = []toggleDef{
 		tg("Alimentation maximale", "Le processeur reste à pleine vitesse pendant la partie", &cfg.PowerPlan),
 		tg("Timer système 0,5 ms", "Windows plus réactif, images plus régulières", &cfg.TimerRes),
-		tg("Nettoyage de la RAM", "Au lancement du jeu, puis toutes les 10 min si la RAM est pleine", &cfg.RamClean),
+		tg("RAM anti-saccades", "Vide le cache dès que la mémoire libre manque pendant la partie", &cfg.RamClean),
 		tg("Priorité Haute au jeu", "Le jeu passe devant tous les autres programmes", &cfg.GamePriority),
 		tg("Arrière-plan ralenti", "Navigateurs, Spotify, OneDrive… en priorité basse pendant la partie", &cfg.BgPriority),
+		tg("Pause des tâches de fond", "Indexation et préchargement Windows en pause : moins d'à-coups", &cfg.BgServices),
 		tg("Carte graphique dédiée", "Sur les PC à 2 cartes graphiques, force la plus puissante pour le jeu", &cfg.ForceDGPU),
 		tg("Alerte de surchauffe", "Prévient si la carte graphique ou le processeur chauffe trop", &cfg.HeatAlert),
 		tg("RAM nettoyée à l'ouverture", "Libère la mémoire dès que vous ouvrez FPS Boost", &cfg.RamOnLaunch),
@@ -183,6 +184,7 @@ func initToggles() {
 		tg("1 % low", "Mesure des saccades (FPS des pires images)", &cfg.OverlayLow),
 		tg("RAM", "Pourcentage de mémoire utilisée", &cfg.OverlayRAM),
 		tg("Ping", "Latence de votre connexion internet", &cfg.OverlayPing),
+		tg("Fluidité", "Régularité des images, en %", &cfg.OverlayFluid),
 	}
 	appToggles = []toggleDef{
 		tg("Fermer ces applis en jeu", "Libère processeur et RAM pour la partie", &cfg.CloseAppsOn),
@@ -520,7 +522,7 @@ func paint(hwnd uintptr) {
 		drawText(mem, "PENDANT LE JEU", fSection, cMuted, rc(246, 100, 540, 116), DT_SINGLELINE)
 		drawText(mem, "DÉMARRAGE ET NOTIFICATIONS", fSection, cMuted, rc(577, 100, 870, 116), DT_SINGLELINE)
 		drawText(mem, "Les réglages « pendant le jeu » s'activent au lancement de chaque jeu et sont retirés dès que vous le quittez : votre PC redevient exactement comme avant.",
-			fSmall, cMuted, rc(577, 392, 866, 470), DT_WORDBREAK)
+			fSmall, cMuted, rc(577, 456, 866, 560), DT_WORDBREAK)
 	case pOverlay:
 		drawText(mem, "APERÇU", fSection, cMuted, rc(246, 102, 860, 118), DT_SINGLELINE)
 		drawText(mem, "Touche  Inser  en jeu", fBold, cText, rc(492, 196, 864, 216), DT_SINGLELINE)
@@ -588,6 +590,9 @@ func paintHomeText(mem uintptr, title, sub string) {
 			}
 			if fpsLow1 > 0 {
 				parts = append(parts, "1 % low "+itoa(fpsLow1))
+			}
+			if fpsFluid > 0 {
+				parts = append(parts, "fluidité "+itoa(fpsFluid)+" %")
 			}
 			if len(parts) > 0 {
 				fpsSub = strings.Join(parts, "  ·  ")
@@ -681,7 +686,7 @@ func paintHistory(mem uintptr) {
 	cols := []struct {
 		x, w  int32
 		title string
-	}{{246, 84, "DATE"}, {330, 176, "JEU"}, {506, 70, "DURÉE"}, {576, 72, "FPS MOY."}, {648, 72, "1 % LOW"}, {720, 72, "CPU MAX"}, {792, 72, "GPU MAX"}}
+	}{{246, 84, "DATE"}, {330, 176, "JEU"}, {506, 70, "DURÉE"}, {576, 72, "FPS MOY."}, {648, 72, "1 % LOW"}, {720, 72, "FLUIDITÉ"}, {792, 72, "GPU MAX"}}
 	for _, c := range cols {
 		drawText(mem, c.title, fSection, cMuted, rc(c.x, 100, c.x+c.w, 116), DT_SINGLELINE)
 	}
@@ -701,15 +706,28 @@ func paintHistory(mem uintptr) {
 		}
 		return itoa(v)
 	}
+	maxRows := 19
+	if adv := capAdvice(history[len(history)-1]); adv != "" {
+		maxRows = 16
+		drawText(mem, "\uE82F", fIcon, cWarn, rc(246, 488, 270, 506), DT_SINGLELINE)
+		drawText(mem, adv, fSmall, cText, rc(272, 488, 866, 544), DT_WORDBREAK)
+	}
 	row := 0
-	for i := len(history) - 1; i >= 0 && row < 19; i-- {
+	for i := len(history) - 1; i >= 0 && row < maxRows; i-- {
 		h := history[i]
 		y := 126 + int32(row)*22
-		vals := []string{h.Start.Format("02/01 15:04"), h.Game, fmtDur(time.Duration(h.Minutes) * time.Minute), num(h.AvgFPS), num(h.Low1), temp(h.CPUMax), temp(h.GPUMax)}
+		fl := "—"
+		if h.Fluid > 0 {
+			fl = itoa(h.Fluid) + " %"
+		}
+		vals := []string{h.Start.Format("02/01 15:04"), h.Game, fmtDur(time.Duration(h.Minutes) * time.Minute), num(h.AvgFPS), num(h.Low1), fl, temp(h.GPUMax)}
 		for j, c := range cols {
 			col := color{0xC8, 0xCC, 0xD8}
 			if j == 3 && h.AvgFPS > 0 {
 				col = cGreen
+			}
+			if j == 5 && h.Fluid > 0 {
+				col = fluidColor(h.Fluid)
 			}
 			drawText(mem, vals[j], fSmall, col, rc(c.x, y, c.x+c.w-6, y+22), DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS)
 		}

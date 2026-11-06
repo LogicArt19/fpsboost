@@ -356,6 +356,8 @@ type HistEntry struct {
 	Low1    int
 	CPUMax  int
 	GPUMax  int
+	Fluid   int
+	StutMin int
 }
 
 var history []HistEntry

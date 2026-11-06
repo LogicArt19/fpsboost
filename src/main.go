@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	appVersion    = 31
-	appVersionStr = "3.1"
+	appVersion    = 32
+	appVersionStr = "3.2"
 )
 
 func init() { runtime.LockOSThread() }

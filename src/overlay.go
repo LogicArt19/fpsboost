@@ -124,6 +124,9 @@ func overlaySegments() []ovSeg {
 	if cfg.OverlayLow && sess != nil && fpsLow1 > 0 {
 		segs = append(segs, ovSeg{itoa(fpsLow1), "1% LOW", true, cText})
 	}
+	if cfg.OverlayFluid && sess != nil && fpsFluid > 0 {
+		segs = append(segs, ovSeg{itoa(fpsFluid) + "%", "FLUIDITÉ", false, fluidColor(fpsFluid)})
+	}
 
 	sd := sensors()
 	cpu := ""

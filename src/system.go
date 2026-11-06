@@ -59,6 +59,8 @@ type Config struct {
 	CloseAppsOn   bool
 	CloseApps     []string
 	RelaunchApps  bool
+	BgServices    bool
+	OverlayFluid  bool
 	Notifications bool
 	CustomGames   []string
 	GamesBoosted  int
@@ -67,7 +69,7 @@ type Config struct {
 
 var cfg = &Config{PowerPlan: true, TimerRes: true, RamClean: true, GamePriority: true, BgPriority: true,
 	AutoActivate: true, RamOnLaunch: true, Notifications: true, OverlayTemps: true, OverlayRAM: true,
-	OverlayLow: true, OverlayPing: true, ForceDGPU: true, HeatAlert: true, RelaunchApps: true}
+	OverlayLow: true, OverlayPing: true, ForceDGPU: true, HeatAlert: true, RelaunchApps: true, BgServices: true}
 
 func loadConfig() { loadJSON("config.json", cfg) }
 func saveConfig() { saveJSON("config.json", cfg) }
@@ -179,6 +181,7 @@ type Backup struct {
 	CreatedScheme string
 	Applied       bool
 	TweakVersion  int
+	SchemeTuned   int
 }
 
 const tweakVersion = 2
@@ -315,6 +318,9 @@ func perfScheme() string {
 	list, _ := run("powercfg", "/list")
 	list = strings.ToLower(list)
 	if backup.CreatedScheme != "" && strings.Contains(list, backup.CreatedScheme) {
+		if backup.SchemeTuned < 1 {
+			tuneScheme(backup.CreatedScheme)
+		}
 		return backup.CreatedScheme
 	}
 	out, code := run("powercfg", "-duplicatescheme", ultimateGUID)
@@ -322,6 +328,7 @@ func perfScheme() string {
 		backup.CreatedScheme = g
 		saveBackup()
 		run("powercfg", "/changename", g, "FPS Boost", "Performances maximales pour le jeu")
+		tuneScheme(g)
 		return g
 	}
 	if strings.Contains(list, highPerfGUID) {

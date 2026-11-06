@@ -50,12 +50,13 @@ var (
 	updLastCheck time.Time
 )
 
-const releaseNotes = "• Correction du compteur de FPS : fini les faux pics à 500-600 FPS.\n" +
-	"   Les FPS sont maintenant calculés d'après l'heure exacte de chaque image\n" +
-	"   (affichage avec environ 2 secondes de décalage, mais valeurs exactes)\n" +
-	"• 1 % low et historique plus précis\n\n" +
-	"Version 3.0 : diagnostic du PC, historique des parties, applis à fermer en jeu,\n" +
-	"carte graphique dédiée forcée, ping dans l'overlay, alerte de surchauffe"
+const releaseNotes = "Version 3.2 — FLUIDITÉ\n" +
+	"• Plan d'alimentation anti-latence : aucun cœur du processeur en veille, turbo agressif,\n" +
+	"   pas de mise en veille de la carte graphique (PCIe), de l'USB (souris) ni du disque\n" +
+	"• RAM anti-saccades : le cache est vidé dès que la mémoire libre manque\n" +
+	"• Pause de l'indexation et du préchargement Windows pendant la partie\n" +
+	"• Mesure de la fluidité (régularité des images) sur l'accueil, l'overlay et l'historique\n" +
+	"• Conseil personnalisé de limite de FPS quand une partie manque de régularité"
 
 // Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
 const WM_UPDATE_RESULT = WM_APP + 9
