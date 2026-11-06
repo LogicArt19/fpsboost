@@ -1,6 +1,6 @@
 {
-  "version": 33,
-  "name": "3.3",
+  "version": 34,
+  "name": "3.4",
   "url": "https://github.com/LogicArt19/fpsboost/raw/main/release/FPSBoost.exe",
-  "notes": "• Économie d'énergie : quand le jeu est réduit ou en arrière-plan plus de 10 s, le boost se met en pause (le PC consomme et chauffe moins)\n• Retour au jeu : boost réactivé instantanément\n• (3.2) Plan anti-latence, RAM anti-saccades, pause des tâches de fond, mesure de la fluidité"
+  "notes": "• Nouvelle page FLUIDITÉ\n• Écran à sa fréquence maximale en un clic\n• Fréquence variable Windows (VRR) activée, même en fenêtré\n• Carte NVIDIA : limite de FPS idéale + mode faible latence réglés dans le pilote en un clic\n• Accès direct au panneau NVIDIA / AMD et réglages conseillés dans le jeu"
 }

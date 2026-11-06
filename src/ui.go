@@ -15,6 +15,7 @@ const (
 
 	// Pages
 	pHome = iota - 1
+	pFluid
 	pDiag
 	pSettings
 	pOverlay
@@ -32,6 +33,12 @@ const (
 	idRam      = 151
 	idOptimize = 152
 	idRestore  = 153
+
+	idFlHz    = 170
+	idFlPanel = 171
+	idFlVRR   = 172
+	idFlCap   = 173
+	idFlLat   = 174
 
 	idDiagRun = 160
 	idDiagFix = 161
@@ -113,6 +120,7 @@ func s(v int32) int32 { return v * dpi / 96 }
 
 var navItems = [][2]string{
 	{"", "Accueil"},
+	{"", "Fluidité"},
 	{"", "Diagnostic"},
 	{"", "Paramètres"},
 	{"", "Overlay"},
@@ -125,6 +133,7 @@ var navItems = [][2]string{
 
 var pageTitles = [][2]string{
 	{"Tableau de bord", "Booster automatique pour tous vos jeux"},
+	{"Fluidité", "Les réglages qui se ressentent vraiment à l'écran"},
 	{"Diagnostic du PC", ""},
 	{"Paramètres", "Tout s'applique automatiquement, rien à faire en jeu"},
 	{"Overlay en jeu", "Une petite barre par-dessus le jeu : FPS, processeur, carte graphique, RAM, ping"},
@@ -313,13 +322,17 @@ func edit(page, id int, x, y, wd int32, cue string) uintptr {
 
 func createControls() {
 	for i := range navItems {
-		buttons[idNav0+i] = child("BUTTON", WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, idNav0+i, 12, 86+int32(i)*40, 186, 36)
+		buttons[idNav0+i] = child("BUTTON", WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW, idNav0+i, 12, 80+int32(i)*37, 186, 34)
 	}
 	// Accueil
 	button(pHome, idPower, 676, 26, 204, 44)
 	button(pHome, idRam, 246, 350, 196, 38)
 	button(pHome, idOptimize, 454, 350, 196, 38)
 	button(pHome, idRestore, 662, 350, 202, 38)
+	// Fluidité
+	for i, id := range []int{idFlHz, idFlPanel, idFlVRR, idFlCap, idFlLat} {
+		button(pFluid, id, 696, 98+int32(i)*80+14, 168, 34)
+	}
 	// Diagnostic
 	button(pDiag, idDiagRun, 246, 548, 220, 34)
 	button(pDiag, idDiagFix, 478, 548, 250, 34)
@@ -387,6 +400,9 @@ func showPage(p int) {
 			call(pSendMessageW, hLog, LB_SETTOPINDEX, n-1, 0)
 		}
 	}
+	if p == pFluid {
+		nvRefresh()
+	}
 	if p == pDiag && !diagDone {
 		runDiagnostic()
 		diagDone = true
@@ -451,6 +467,11 @@ func paint(hwnd uintptr) {
 	switch curPage {
 	case pHome:
 		paintHomeShapes(g, dot)
+	case pFluid:
+		card(g, 230, 88, 650, 492)
+		for i := int32(1); i < 6; i++ {
+			g.rectColor(cBorder, s(246), s(98+i*80-6), s(618), 1)
+		}
 	case pDiag:
 		card(g, 230, 88, 650, 446)
 	case pSettings:
@@ -522,6 +543,20 @@ func paint(hwnd uintptr) {
 	switch curPage {
 	case pHome:
 		paintHomeText(mem, title, sub)
+	case pFluid:
+		for i, st := range fluidSteps() {
+			y := 98 + int32(i)*80
+			icon, c := "", cGreen
+			switch st.Status {
+			case diagWarn:
+				icon, c = "", cWarn
+			case diagInfo:
+				icon, c = "", cInfo
+			}
+			drawText(mem, icon, fIconBig, c, rc(250, y+2, 278, y+26), DT_SINGLELINE|DT_VCENTER)
+			drawText(mem, st.Title, fBold, cText, rc(286, y+4, 686, y+24), DT_SINGLELINE|DT_END_ELLIPSIS)
+			drawText(mem, st.Detail, fSmall, cMuted, rc(286, y+24, 686, y+72), DT_WORDBREAK|DT_END_ELLIPSIS)
+		}
 	case pDiag:
 		paintDiag(mem)
 	case pSettings:
@@ -777,6 +812,9 @@ func paintUpdateText(mem uintptr) {
 }
 
 func buttonText(id int) (icon, text string) {
+	if id >= idFlHz && id <= idFlLat {
+		return fluidButtonText(id)
+	}
 	switch id {
 	case idRam:
 		return "", "Libérer la RAM"
@@ -916,7 +954,7 @@ func drawItem(d *DRAWITEMSTRUCT) {
 
 	default:
 		c := cBtn
-		if id == idAdd || id == idAppAdd || id == idOvShow || id == idDiagFix ||
+		if id == idAdd || id == idAppAdd || id == idOvShow || id == idDiagFix || id == idFlCap || id == idFlLat || id == idFlHz ||
 			(id == idCheckUpd && pendingUpdate != nil) || id == idOvPos0+cfg.OverlayPos {
 			c = cAccent
 		}
@@ -1156,6 +1194,8 @@ func onCommand(id, code int) {
 		if msgBox("Remettre Windows exactement comme avant FPS Boost ?\n(désactive aussi le booster et le démarrage automatique)", MB_YESNO|MB_ICONQUESTION) == IDYES {
 			restoreAll()
 		}
+	case id >= idFlHz && id <= idFlLat:
+		fluidAction(id)
 	case id == idDiagRun:
 		runDiagnostic()
 		refreshUI()

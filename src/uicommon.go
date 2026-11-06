@@ -140,6 +140,8 @@ func hideToTray() {
 
 func restoreAll() {
 	setBooster(false)
+	nvRestore(nvFrameLimiterID, &backup.NvFRL)
+	nvRestore(nvLowLatencyID, &backup.NvLL)
 	restoreTweaks()
 	if backup.CreatedScheme != "" {
 		if activeScheme() == backup.CreatedScheme {

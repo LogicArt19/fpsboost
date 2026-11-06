@@ -50,12 +50,14 @@ var (
 	updLastCheck time.Time
 )
 
-const releaseNotes = "Version 3.3 — ÉCONOMIE D'ÉNERGIE\n" +
-	"• Quand le jeu est réduit ou en arrière-plan plus de 10 s (Discord, navigateur…),\n" +
-	"   le boost se met en pause : le PC repasse en mode normal, consomme et chauffe moins\n" +
-	"• Dès que vous revenez dans le jeu, le boost se réactive instantanément\n\n" +
-	"Version 3.2 — FLUIDITÉ : plan anti-latence, RAM anti-saccades, pause des tâches de fond,\n" +
-	"mesure de la fluidité et conseil de limite de FPS"
+const releaseNotes = "Version 3.4 — PAGE FLUIDITÉ\n" +
+	"• Écran passé à sa fréquence maximale en un clic\n" +
+	"• Fréquence variable Windows (VRR) activée, aussi pour les jeux en fenêtré\n" +
+	"• Carte NVIDIA : limite de FPS idéale (fréquence écran − 3) et mode faible latence\n" +
+	"   réglés directement dans le pilote, en un clic, retirables à tout moment\n" +
+	"• Boutons pour ouvrir le panneau NVIDIA / AMD et réglages conseillés dans le jeu\n\n" +
+	"3.3 : boost en pause quand le jeu est en arrière-plan (économie d'énergie)\n" +
+	"3.2 : plan anti-latence, RAM anti-saccades, pause des tâches de fond, score de fluidité"
 
 // Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
 const WM_UPDATE_RESULT = WM_APP + 9

@@ -61,6 +61,7 @@ type Config struct {
 	RelaunchApps  bool
 	BgServices    bool
 	EcoBackground bool
+	NvapiBroken   bool
 	OverlayFluid  bool
 	Notifications bool
 	CustomGames   []string
@@ -183,9 +184,11 @@ type Backup struct {
 	Applied       bool
 	TweakVersion  int
 	SchemeTuned   int
+	NvFRL         nvSaved
+	NvLL          nvSaved
 }
 
-const tweakVersion = 2
+const tweakVersion = 3
 
 // Écrit une valeur en mémorisant l'originale (pour « Tout restaurer »)
 func setTracked(rootName, path, name, kind string, dw uint32, sz string) bool {
@@ -267,11 +270,15 @@ func applyTweaks() int {
 	// Optimisations pour les jeux en fenêtré / sans bordure (Windows 11) : moins de latence
 	gp, gn := `Software\Microsoft\DirectX\UserGpuPreferences`, "DirectXUserGlobalSettings"
 	_, _, cur, _ := regGet(HKCU, gp, gn)
-	if !strings.Contains(cur, "SwapEffectUpgradeEnable=1") {
-		nv := strings.Replace(cur, "SwapEffectUpgradeEnable=0;", "", 1) + "SwapEffectUpgradeEnable=1;"
-		if setTracked("HKCU", gp, gn, "sz", 0, nv) {
-			n++
+	// + fréquence variable (VRR) pour les jeux qui ne la gèrent pas eux-mêmes
+	nv := cur
+	for _, k := range []string{"SwapEffectUpgradeEnable", "VRROptimizeEnable"} {
+		if !strings.Contains(nv, k+"=1") {
+			nv = strings.Replace(nv, k+"=0;", "", 1) + k + "=1;"
 		}
+	}
+	if nv != cur && setTracked("HKCU", gp, gn, "sz", 0, nv) {
+		n++
 	}
 	backup.Applied = true
 	backup.TweakVersion = tweakVersion

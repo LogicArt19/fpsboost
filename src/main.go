@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	appVersion    = 33
-	appVersionStr = "3.3"
+	appVersion    = 34
+	appVersionStr = "3.4"
 )
 
 func init() { runtime.LockOSThread() }
@@ -97,6 +97,7 @@ func main() {
 	startSensors()
 	createMainWindow()
 	createOverlay()
+	checkNvapiCrash()
 
 	stopTraceSession() // au cas où une ancienne session de mesure serait restée ouverte
 	addLog("FPS Boost " + appVersionStr + " démarré")
