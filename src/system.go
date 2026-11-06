@@ -47,13 +47,15 @@ type Config struct {
 	GamePriority  bool
 	BgPriority    bool
 	AutoActivate  bool
+	RamOnLaunch   bool
 	Notifications bool
 	CustomGames   []string
 	GamesBoosted  int
 	TrayHintShown bool
 }
 
-var cfg = &Config{true, true, true, true, true, true, true, nil, 0, false}
+var cfg = &Config{PowerPlan: true, TimerRes: true, RamClean: true, GamePriority: true, BgPriority: true,
+	AutoActivate: true, RamOnLaunch: true, Notifications: true}
 
 func loadConfig() { loadJSON("config.json", cfg) }
 func saveConfig() { saveJSON("config.json", cfg) }
@@ -364,6 +366,43 @@ func purgeStandby() (int64, bool) {
 		return 0, true
 	}
 	return int64(before-after) / (1024 * 1024), true
+}
+
+var pEmptyWorkingSet = modKernel32.NewProc("K32EmptyWorkingSet")
+
+var noTrim = map[string]bool{"system": true, "registry": true, "memory compression": true, "dwm.exe": true,
+	"csrss.exe": true, "audiodg.exe": true, "smss.exe": true, "wininit.exe": true, "lsass.exe": true}
+
+// Réduit la mémoire utilisée par les programmes en arrière-plan
+func trimWorkingSets(exclude uint32) int {
+	n := 0
+	for _, p := range snapshot() {
+		if p.Pid <= 4 || p.Pid == exclude || noTrim[strings.ToLower(p.Name)] {
+			continue
+		}
+		h, err := syscall.OpenProcess(0x0400|0x0100, false, p.Pid)
+		if err != nil {
+			continue
+		}
+		if call(pEmptyWorkingSet, uintptr(h)) != 0 {
+			n++
+		}
+		syscall.CloseHandle(h)
+	}
+	return n
+}
+
+// Nettoyage complet : mémoire des programmes + cache standby
+func fullClean(exclude uint32) (freedMB int64, before, after uint32) {
+	m1 := memStatus()
+	trimWorkingSets(exclude)
+	purgeStandby()
+	m2 := memStatus()
+	d := int64(m2.AvailPhys) - int64(m1.AvailPhys)
+	if d < 0 {
+		d = 0
+	}
+	return d / (1024 * 1024), m1.MemoryLoad, m2.MemoryLoad
 }
 
 func timerInfo() (cur, finest uint32) {

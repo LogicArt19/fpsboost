@@ -1,6 +1,6 @@
 {
-  "version": 22,
-  "name": "2.2",
+  "version": 23,
+  "name": "2.3",
   "url": "https://github.com/LogicArt19/fpsboost/raw/main/release/FPSBoost.exe",
-  "notes": "- Mises à jour automatiques intégrées\n- Compteur de FPS en direct\n- Bouton « Mises à jour » dans l'appli"
+  "notes": "• Nouvelle interface avec menu : Accueil, Paramètres, Jeux, Journal, Mises à jour\n• Nettoyage complet de la RAM à chaque ouverture de FPS Boost\n• « Libérer la RAM » plus efficace (Mo libérés + RAM avant/après)\n• Grand compteur de FPS en direct sur l'accueil"
 }

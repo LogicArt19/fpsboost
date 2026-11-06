@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	appVersion    = 22
-	appVersionStr = "2.2"
+	appVersion    = 23
+	appVersionStr = "2.3"
 )
 
 func init() { runtime.LockOSThread() }
@@ -121,6 +121,9 @@ func main() {
 	checkForUpdate(false)
 	if !trayMode {
 		showMain()
+	}
+	if cfg.RamOnLaunch {
+		call(pPostMessageW, hwndMain, WM_LAUNCHRAM, 0, 0)
 	}
 
 	var m MSG

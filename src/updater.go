@@ -12,14 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 const (
 	updateManifestURL = "https://raw.githubusercontent.com/LogicArt19/fpsboost/main/version.json"
-	WM_UPDATE_FOUND   = WM_APP + 5
 	WM_UPDATE_DONE    = WM_APP + 6
-	WM_UPDATE_NONE    = WM_APP + 7
 	NIN_BALLOONCLICK  = 0x0405
 )
 
@@ -39,35 +36,58 @@ var (
 	httpClient     = &http.Client{Timeout: 60 * time.Second}
 )
 
-// Vérifie en arrière-plan ; manual = clic sur "Rechercher des mises à jour"
+const (
+	updNone = iota
+	updChecking
+	updUpToDate
+	updAvailable
+	updError
+	updDownloading
+)
+
+var (
+	updState     = updNone
+	updLastCheck time.Time
+)
+
+const releaseNotes = "• Nouvelle interface avec menu : Accueil, Paramètres, Jeux, Journal, Mises à jour\n" +
+	"• Nettoyage complet de la RAM à chaque ouverture de FPS Boost (désactivable)\n" +
+	"• Bouton « Libérer la RAM » plus efficace : affiche les Mo libérés et la RAM avant/après\n" +
+	"• Grand compteur de FPS en direct sur l'accueil\n" +
+	"• Statut du booster et FPS toujours visibles dans le menu"
+
+// Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
+const WM_UPDATE_RESULT = WM_APP + 9
+
 func checkForUpdate(manual bool) {
+	if updState == updDownloading {
+		return
+	}
+	updState = updChecking
+	refreshUI()
+	m := uintptr(0)
+	if manual {
+		m = 1
+	}
 	go func() {
 		req, _ := http.NewRequest("GET", updateManifestURL+"?t="+fmt.Sprint(time.Now().Unix()), nil)
 		req.Header.Set("Cache-Control", "no-cache")
 		resp, err := httpClient.Do(req)
 		if err != nil {
-			if manual {
-				call(pPostMessageW, hwndMain, WM_UPDATE_NONE, 1, 0)
-			}
+			call(pPostMessageW, hwndMain, WM_UPDATE_RESULT, 1, m)
 			return
 		}
 		defer resp.Body.Close()
 		var u updateInfo
 		if resp.StatusCode != 200 || json.NewDecoder(resp.Body).Decode(&u) != nil || u.URL == "" {
-			if manual {
-				call(pPostMessageW, hwndMain, WM_UPDATE_NONE, 1, 0)
-			}
+			call(pPostMessageW, hwndMain, WM_UPDATE_RESULT, 1, m)
 			return
 		}
 		if u.Version > appVersion {
 			pendingUpdate = &u
-			m := uintptr(0)
-			if manual {
-				m = 1
-			}
-			call(pPostMessageW, hwndMain, WM_UPDATE_FOUND, m, 0)
-		} else if manual {
-			call(pPostMessageW, hwndMain, WM_UPDATE_NONE, 0, 0)
+			call(pPostMessageW, hwndMain, WM_UPDATE_RESULT, 2, m)
+		} else {
+			call(pPostMessageW, hwndMain, WM_UPDATE_RESULT, 0, m)
 		}
 	}()
 }
@@ -92,7 +112,7 @@ func offerUpdate() {
 	if msgBox(msg, MB_YESNO|MB_ICONQUESTION) == IDYES {
 		startUpdate()
 	} else {
-		addLog("Mise à jour " + u.Name + " disponible (menu de l'icône > Rechercher des mises à jour)")
+		addLog("Mise à jour " + u.Name + " disponible (page Mises à jour)")
 	}
 }
 
@@ -102,19 +122,19 @@ func startUpdate() {
 		return
 	}
 	updateBusy = true
+	updState = updDownloading
+	refreshUI()
 	addLog("Téléchargement de la mise à jour " + u.Name + "…")
 	go func() {
 		updateErr = ""
 		dst := dataFile("FPSBoost-update.exe")
-		err := download(u.URL, dst)
-		if err != nil {
+		if err := download(u.URL, dst); err != nil {
 			updateErr = err.Error()
 		}
 		updateFile = dst
 		call(pPostMessageW, hwndMain, WM_UPDATE_DONE, 0, 0)
 	}()
 }
-
 func download(url, dst string) error {
 	resp, err := httpClient.Get(url)
 	if err != nil {
@@ -148,6 +168,7 @@ func download(url, dst string) error {
 // Remplace l'exe en cours par la nouvelle version et la lance
 func finishUpdate() {
 	updateBusy = false
+	updState = updAvailable
 	if updateErr != "" {
 		addLog("Échec de la mise à jour : " + updateErr)
 		msgBox("La mise à jour n'a pas pu être téléchargée.\n"+updateErr+"\n\nRéessayez plus tard.", MB_OK|MB_ICONINFO)
@@ -198,29 +219,38 @@ func cleanupOldVersion() {
 	}
 }
 
-func handleUpdateMessages(msg, wp uintptr) bool {
+func handleUpdateMessages(msg, wp, lp uintptr) bool {
 	switch msg {
-	case WM_UPDATE_FOUND:
-		if pendingUpdate != nil {
+	case WM_UPDATE_RESULT:
+		updLastCheck = time.Now()
+		manual := lp == 1
+		switch wp {
+		case 2:
+			updState = updAvailable
 			addLog("Nouvelle mise à jour disponible : FPS Boost " + pendingUpdate.Name)
-		}
-		if wp == 1 {
-			showMain()
-		}
-		offerUpdate()
-		return true
-	case WM_UPDATE_NONE:
-		if wp == 1 {
-			msgBox("Impossible de vérifier les mises à jour.\nVérifiez votre connexion internet.", MB_OK|MB_ICONINFO)
-		} else {
-			msgBox("Vous avez déjà la dernière version de FPS Boost ("+appVersionStr+").", MB_OK|MB_ICONINFO)
+			if manual {
+				showMain()
+			}
+			refreshUI()
+			offerUpdate()
+		case 1:
+			updState = updError
+			refreshUI()
+			if manual {
+				msgBox("Impossible de vérifier les mises à jour.\nVérifiez votre connexion internet.", MB_OK|MB_ICONINFO)
+			}
+		default:
+			updState = updUpToDate
+			refreshUI()
+			if manual {
+				msgBox("Vous avez déjà la dernière version de FPS Boost ("+appVersionStr+").", MB_OK|MB_ICONINFO)
+			}
 		}
 		return true
 	case WM_UPDATE_DONE:
 		finishUpdate()
+		refreshUI()
 		return true
 	}
 	return false
 }
-
-var _ = unsafe.Sizeof(0)
