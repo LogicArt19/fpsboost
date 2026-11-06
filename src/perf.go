@@ -77,10 +77,7 @@ func updateSelfUsage() {
 // Les capteurs ne travaillent que si quelque chose les affiche
 var sensorsWanted int32
 
-func setSensorsWanted(v bool) {
-	n := int32(0)
-	if v {
-		n = 1
-	}
-	atomic.StoreInt32(&sensorsWanted, n)
+// 0 = pause, 1 = lent (partie en cours, pour l'historique et l'alerte), 2 = chaque seconde (affiché)
+func setSensorsWanted(lvl int32) {
+	atomic.StoreInt32(&sensorsWanted, lvl)
 }

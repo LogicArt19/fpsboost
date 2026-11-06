@@ -52,6 +52,13 @@ type Config struct {
 	OverlayTemps  bool
 	OverlayRAM    bool
 	OverlayPos    int
+	OverlayLow    bool
+	OverlayPing   bool
+	ForceDGPU     bool
+	HeatAlert     bool
+	CloseAppsOn   bool
+	CloseApps     []string
+	RelaunchApps  bool
 	Notifications bool
 	CustomGames   []string
 	GamesBoosted  int
@@ -59,7 +66,8 @@ type Config struct {
 }
 
 var cfg = &Config{PowerPlan: true, TimerRes: true, RamClean: true, GamePriority: true, BgPriority: true,
-	AutoActivate: true, RamOnLaunch: true, Notifications: true, OverlayTemps: true, OverlayRAM: true}
+	AutoActivate: true, RamOnLaunch: true, Notifications: true, OverlayTemps: true, OverlayRAM: true,
+	OverlayLow: true, OverlayPing: true, ForceDGPU: true, HeatAlert: true, RelaunchApps: true}
 
 func loadConfig() { loadJSON("config.json", cfg) }
 func saveConfig() { saveJSON("config.json", cfg) }
@@ -170,6 +178,25 @@ type Backup struct {
 	PowerScheme   string
 	CreatedScheme string
 	Applied       bool
+	TweakVersion  int
+}
+
+const tweakVersion = 2
+
+// Écrit une valeur en mémorisant l'originale (pour « Tout restaurer »)
+func setTracked(rootName, path, name, kind string, dw uint32, sz string) bool {
+	root := rootKey(rootName)
+	if !hasBackup(rootName, path, name) {
+		k, odw, osz, ok := regGet(root, path, name)
+		if k == "other" {
+			return false
+		}
+		backup.Entries = append(backup.Entries, RegEntry{rootName, path, name, kind, ok, odw, osz})
+	}
+	if kind == "dword" {
+		return regSetDword(root, path, name, dw)
+	}
+	return regSetSz(root, path, name, sz)
 }
 
 var backup = &Backup{}
@@ -233,7 +260,17 @@ func applyTweaks() int {
 			n++
 		}
 	}
+	// Optimisations pour les jeux en fenêtré / sans bordure (Windows 11) : moins de latence
+	gp, gn := `Software\Microsoft\DirectX\UserGpuPreferences`, "DirectXUserGlobalSettings"
+	_, _, cur, _ := regGet(HKCU, gp, gn)
+	if !strings.Contains(cur, "SwapEffectUpgradeEnable=1") {
+		nv := strings.Replace(cur, "SwapEffectUpgradeEnable=0;", "", 1) + "SwapEffectUpgradeEnable=1;"
+		if setTracked("HKCU", gp, gn, "sz", 0, nv) {
+			n++
+		}
+	}
 	backup.Applied = true
+	backup.TweakVersion = tweakVersion
 	saveBackup()
 	return n
 }

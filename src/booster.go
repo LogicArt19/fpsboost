@@ -76,6 +76,11 @@ type Session struct {
 	TimerSet       bool
 	Bg             []bgRec
 
+	Closed    []closedApp
+	toKill    []procEntry
+	killDue   time.Time
+	cpuMax    float64
+	gpuMax    float64
 	prioDue   time.Time
 	prioDone  bool
 	lastBg    time.Time
@@ -213,6 +218,8 @@ func startBoost(p *procEntry) {
 	}
 	addLog("► Jeu détecté : " + s.Game)
 	fpsStart(p.Pid)
+	forceDedicatedGPU(p.Pid, s.Game)
+	closeApps(s)
 	if cfg.PowerPlan {
 		boostPower(s)
 	}
@@ -279,12 +286,17 @@ func endBoost(quiet bool) {
 		showOverlay(false)
 	}
 	fpsAvgFinal := fpsAvg
+	low1 := sessionLow1()
 	fpsStop()
+	relaunchApps(s)
+	if !quiet && time.Since(s.Start) >= time.Minute {
+		addHistory(HistEntry{s.Game, s.Start, int(time.Since(s.Start).Minutes()), fpsAvgFinal, low1, int(s.cpuMax), int(s.gpuMax)})
+	}
 	os.Remove(dataFile("session.json"))
 	sess = nil
 	if !quiet {
 		if fpsAvgFinal > 0 {
-			addLog(fmt.Sprintf("■ %s fermé (%s de jeu, %d FPS en moyenne)", s.Game, fmtDur(time.Since(s.Start)), fpsAvgFinal))
+			addLog(fmt.Sprintf("■ %s fermé (%s de jeu, %d FPS en moyenne, 1 %% low %d)", s.Game, fmtDur(time.Since(s.Start)), fpsAvgFinal, low1))
 		} else {
 			addLog(fmt.Sprintf("■ %s fermé (%s de jeu)", s.Game, fmtDur(time.Since(s.Start))))
 		}
@@ -315,6 +327,18 @@ func tick() {
 			return
 		}
 		now := time.Now()
+		if !sess.killDue.IsZero() && now.After(sess.killDue) {
+			sess.killDue = time.Time{}
+			killLeftovers(sess)
+		}
+		sd := sensors()
+		if sd.CPUTempOk && sd.CPUTemp > sess.cpuMax {
+			sess.cpuMax = sd.CPUTemp
+		}
+		if sd.GPUTempOk && sd.GPUTemp > sess.gpuMax {
+			sess.gpuMax = sd.GPUTemp
+		}
+		checkHeat()
 		if !sess.prioDone && now.After(sess.prioDue) {
 			sess.prioDone = true
 			if setPriority(sess.Pid, prioHigh) {

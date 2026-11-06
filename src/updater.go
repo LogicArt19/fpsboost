@@ -50,10 +50,13 @@ var (
 	updLastCheck time.Time
 )
 
-const releaseNotes = "• FPS Boost encore plus léger : « mode efficacité » de Windows et priorité basse,\n" +
-	"   il passe toujours derrière votre jeu\n" +
-	"• Les capteurs se mettent en pause quand rien ne les affiche (0 % CPU)\n" +
-	"• Sa propre consommation (CPU et mémoire) est affichée dans le menu de gauche"
+const releaseNotes = "• Diagnostic du PC : écran bloqué à 60 Hz, RAM (XMP, double canal), pilote graphique, disque… + corrections automatiques\n" +
+	"• 1 % low (mesure des saccades) dans l'overlay et sur l'accueil\n" +
+	"• Historique des parties : FPS moyen, 1 % low, températures max\n" +
+	"• Fermeture automatique des applis gourmandes en jeu, relancées après la partie\n" +
+	"• Carte graphique dédiée forcée sur les PC à 2 cartes graphiques\n" +
+	"• Optimisation Windows des jeux en fenêtré / sans bordure (moins de latence)\n" +
+	"• Ping dans l'overlay, alerte de surchauffe"
 
 // Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
 const WM_UPDATE_RESULT = WM_APP + 9

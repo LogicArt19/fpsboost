@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	appVersion    = 25
-	appVersionStr = "2.5"
+	appVersion    = 30
+	appVersionStr = "3.0"
 )
 
 func init() { runtime.LockOSThread() }
@@ -88,6 +88,9 @@ func main() {
 	makeSelfLight()
 	loadConfig()
 	loadBackup()
+	loadHistory()
+	initQPC()
+	startPinger()
 	enablePrivilege("SeProfileSingleProcessPrivilege")
 	enablePrivilege("SeIncreaseBasePriorityPrivilege")
 	gdipInit()
@@ -103,7 +106,7 @@ func main() {
 		balloon("FPS Boost mis à jour", "Version "+appVersionStr+" installée. Vos réglages ont été conservés.")
 	}
 	recoverSession()
-	if !backup.Applied {
+	if !backup.Applied || backup.TweakVersion < tweakVersion {
 		n := applyTweaks()
 		addLog(fmt.Sprintf("Optimisations Windows appliquées (%d réglages)", n))
 		addLog("Redémarrez le PC une fois pour profiter de tous les réglages")

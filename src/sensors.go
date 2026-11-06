@@ -255,10 +255,13 @@ func startSensors() {
 			thermalDeci = false
 		}
 		cpuUsage()
+		tickN := 0
 		for {
 			time.Sleep(time.Second)
-			if atomic.LoadInt32(&sensorsWanted) == 0 {
-				continue // rien n'affiche les capteurs : pause, 0 % CPU
+			tickN++
+			lvl := atomic.LoadInt32(&sensorsWanted)
+			if lvl == 0 || (lvl == 1 && tickN%5 != 0) {
+				continue // rien n'affiche les capteurs : pause (ou mesure lente pour l'historique)
 			}
 			var d SensorData
 			d.CPUUse, d.CPUUseOk = cpuUsage()

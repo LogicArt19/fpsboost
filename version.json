@@ -1,6 +1,6 @@
 {
-  "version": 25,
-  "name": "2.5",
+  "version": 30,
+  "name": "3.0",
   "url": "https://github.com/LogicArt19/fpsboost/raw/main/release/FPSBoost.exe",
-  "notes": "• FPS Boost encore plus léger : mode efficacité Windows + priorité basse, il passe toujours derrière votre jeu\n• Capteurs en pause quand rien ne les affiche\n• Sa propre consommation (CPU et mémoire) affichée dans le menu"
+  "notes": "• Diagnostic du PC (écran à 60 Hz, RAM, pilote, disque…) + corrections automatiques\n• 1 % low dans l'overlay et sur l'accueil\n• Historique des parties\n• Fermeture auto des applis gourmandes en jeu, relancées après\n• Carte graphique dédiée forcée (PC à 2 cartes graphiques)\n• Moins de latence pour les jeux en fenêtré / sans bordure\n• Ping dans l'overlay, alerte de surchauffe"
 }

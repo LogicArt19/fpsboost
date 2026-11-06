@@ -7,6 +7,8 @@ package main
 import (
 	"encoding/binary"
 	"runtime"
+	"sort"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -60,7 +62,70 @@ var (
 	fpsSum      int
 	fpsSamples  int
 	fpsStarted  time.Time
+	fpsLow1     int
+
+	frameMu     sync.Mutex
+	lastFrameTS int64
+	frameRing   [4096]float32
+	ringN       int
+	ringPos     int
+	frameHist   [2000]uint32 // tranches de 0,1 ms
+	histTotal   uint64
+	qpcFreq     float64
 )
+
+var pQueryPerformanceFrequency = modKernel32.NewProc("QueryPerformanceFrequency")
+
+func initQPC() {
+	var f int64
+	call(pQueryPerformanceFrequency, uintptr(unsafe.Pointer(&f)))
+	qpcFreq = float64(f)
+}
+
+// 1 % low : moyenne des 1 % d'images les plus lentes, convertie en FPS
+func rollingLow1() int {
+	frameMu.Lock()
+	n := ringN
+	tmp := make([]float32, n)
+	copy(tmp, frameRing[:n])
+	frameMu.Unlock()
+	if n < 100 {
+		return 0
+	}
+	sort.Slice(tmp, func(i, j int) bool { return tmp[i] > tmp[j] })
+	k := n / 100
+	var sum float32
+	for _, v := range tmp[:k] {
+		sum += v
+	}
+	if sum <= 0 {
+		return 0
+	}
+	return int(1000/(sum/float32(k)) + 0.5)
+}
+
+func sessionLow1() int {
+	frameMu.Lock()
+	defer frameMu.Unlock()
+	if histTotal < 200 {
+		return 0
+	}
+	need := histTotal / 100
+	var cnt uint64
+	var sum float64
+	for b := len(frameHist) - 1; b >= 0 && cnt < need; b-- {
+		c := uint64(frameHist[b])
+		if cnt+c > need {
+			c = need - cnt
+		}
+		cnt += c
+		sum += float64(c) * (float64(b) + 0.5) / 10
+	}
+	if sum <= 0 {
+		return 0
+	}
+	return int(1000/(sum/float64(cnt)) + 0.5)
+}
 
 var etwCb = syscall.NewCallback(func(rec uintptr) uintptr {
 	pid := *(*uint32)(unsafe.Pointer(rec + 12))
@@ -71,6 +136,26 @@ var etwCb = syscall.NewCallback(func(rec uintptr) uintptr {
 	id := *(*uint16)(unsafe.Pointer(rec + 40))
 	if (d1 == dxgiGUID.Data1 && (id == 42 || id == 55)) || (d1 == d3d9GUID.Data1 && id == 1) {
 		atomic.AddUint64(&fpsCount, 1)
+		ts := *(*int64)(unsafe.Pointer(rec + 16))
+		frameMu.Lock()
+		if lastFrameTS != 0 && qpcFreq > 0 {
+			ms := float32(float64(ts-lastFrameTS) * 1000 / qpcFreq)
+			if ms > 0 && ms < 1000 {
+				frameRing[ringPos] = ms
+				ringPos = (ringPos + 1) % len(frameRing)
+				if ringN < len(frameRing) {
+					ringN++
+				}
+				b := int(ms * 10)
+				if b >= len(frameHist) {
+					b = len(frameHist) - 1
+				}
+				frameHist[b]++
+				histTotal++
+			}
+		}
+		lastFrameTS = ts
+		frameMu.Unlock()
 	}
 	return 0
 })
@@ -101,6 +186,10 @@ func fpsReset(pid uint32) {
 	fpsValue, fpsAvg, fpsSum, fpsSamples = 0, 0, 0, 0
 	fpsLast, fpsLastCnt = time.Time{}, 0
 	fpsStarted = time.Now()
+	frameMu.Lock()
+	lastFrameTS, ringN, ringPos, histTotal, fpsLow1 = 0, 0, 0, 0, 0
+	frameHist = [2000]uint32{}
+	frameMu.Unlock()
 }
 
 func fpsStart(pid uint32) {
@@ -171,6 +260,7 @@ func fpsUpdate() {
 		}
 	}
 	fpsLast, fpsLastCnt = now, c
+	fpsLow1 = rollingLow1()
 	if fpsValue > 0 {
 		fpsSum += fpsValue
 		fpsSamples++

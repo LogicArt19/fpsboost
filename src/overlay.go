@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -120,6 +121,9 @@ func overlaySegments() []ovSeg {
 		}
 	}
 	segs = append(segs, ovSeg{fv, "FPS", true, fc})
+	if cfg.OverlayLow && sess != nil && fpsLow1 > 0 {
+		segs = append(segs, ovSeg{itoa(fpsLow1), "1% LOW", true, cText})
+	}
 
 	sd := sensors()
 	cpu := ""
@@ -152,6 +156,15 @@ func overlaySegments() []ovSeg {
 	}
 	if cfg.OverlayRAM {
 		segs = append(segs, ovSeg{fmt.Sprintf("%d%%", memStatus().MemoryLoad), "RAM", false, cText})
+	}
+	if cfg.OverlayPing {
+		if p := atomic.LoadInt32(&pingMs); p >= 0 {
+			pc := cText
+			if p >= 80 {
+				pc = color{0xF5, 0x9E, 0x0B}
+			}
+			segs = append(segs, ovSeg{itoa(int(p)) + " ms", "PING", false, pc})
+		}
 	}
 	return segs
 }
@@ -297,6 +310,11 @@ func showOverlay(on bool) {
 		return
 	}
 	overlayVisible = on
+	v := int32(0)
+	if on {
+		v = 1
+	}
+	atomic.StoreInt32(&overlayOn, v)
 	if on {
 		renderOverlay()
 		call(pShowWindow, hwndOverlay, 4) // SW_SHOWNOACTIVATE
