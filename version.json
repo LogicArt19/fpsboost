@@ -1,6 +1,6 @@
 {
-  "version": 23,
-  "name": "2.3",
+  "version": 24,
+  "name": "2.4",
   "url": "https://github.com/LogicArt19/fpsboost/raw/main/release/FPSBoost.exe",
-  "notes": "• Nouvelle interface avec menu : Accueil, Paramètres, Jeux, Journal, Mises à jour\n• Nettoyage complet de la RAM à chaque ouverture de FPS Boost\n• « Libérer la RAM » plus efficace (Mo libérés + RAM avant/après)\n• Grand compteur de FPS en direct sur l'accueil"
+  "notes": "• Mini overlay en jeu : touche Inser pour l'ouvrir / le fermer\n• Overlay : FPS, processeur, carte graphique, RAM et températures\n• Nouvelle page « Overlay » : aperçu, position à l'écran, ouverture auto\n• Températures CPU et GPU sur l'accueil"
 }

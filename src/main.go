@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	appVersion    = 23
-	appVersionStr = "2.3"
+	appVersion    = 24
+	appVersionStr = "2.4"
 )
 
 func init() { runtime.LockOSThread() }
@@ -90,7 +90,9 @@ func main() {
 	enablePrivilege("SeProfileSingleProcessPrivilege")
 	enablePrivilege("SeIncreaseBasePriorityPrivilege")
 	gdipInit()
+	startSensors()
 	createMainWindow()
+	createOverlay()
 
 	stopTraceSession() // au cas où une ancienne session de mesure serait restée ouverte
 	addLog("FPS Boost " + appVersionStr + " démarré")

@@ -239,6 +239,10 @@ func startBoost(p *procEntry) {
 	cfg.GamesBoosted++
 	saveConfig()
 	addLog("✔ BOOST ACTIF sur " + s.Game)
+	if cfg.OverlayAuto && !overlayVisible {
+		showOverlay(true)
+		overlayAutoOpen = true
+	}
 	if cfg.Notifications {
 		balloon("Boost activé : "+s.Game, "FPS Boost optimise votre PC pendant la partie.")
 	}
@@ -269,6 +273,10 @@ func endBoost(quiet bool) {
 	}
 	if s.handle != 0 {
 		syscall.CloseHandle(s.handle)
+	}
+	if overlayAutoOpen {
+		overlayAutoOpen = false
+		showOverlay(false)
 	}
 	fpsAvgFinal := fpsAvg
 	fpsStop()

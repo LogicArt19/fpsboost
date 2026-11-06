@@ -48,6 +48,10 @@ type Config struct {
 	BgPriority    bool
 	AutoActivate  bool
 	RamOnLaunch   bool
+	OverlayAuto   bool
+	OverlayTemps  bool
+	OverlayRAM    bool
+	OverlayPos    int
 	Notifications bool
 	CustomGames   []string
 	GamesBoosted  int
@@ -55,7 +59,7 @@ type Config struct {
 }
 
 var cfg = &Config{PowerPlan: true, TimerRes: true, RamClean: true, GamePriority: true, BgPriority: true,
-	AutoActivate: true, RamOnLaunch: true, Notifications: true}
+	AutoActivate: true, RamOnLaunch: true, Notifications: true, OverlayTemps: true, OverlayRAM: true}
 
 func loadConfig() { loadJSON("config.json", cfg) }
 func saveConfig() { saveJSON("config.json", cfg) }

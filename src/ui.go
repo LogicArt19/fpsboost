@@ -25,6 +25,11 @@ const (
 	// Paramètres
 	idToggle0 = 200 // 200..2xx
 
+	// Overlay
+	idOvToggle0 = 250 // 250..252
+	idOvShow    = 260
+	idOvPos0    = 270 // 270..273
+
 	// Jeux
 	idEdit   = 300
 	idAdd    = 301
@@ -91,6 +96,7 @@ type navItem struct {
 var navItems = []navItem{
 	{"", "Accueil"},
 	{"", "Paramètres"},
+	{"", "Overlay"},
 	{"", "Jeux"},
 	{"", "Journal"},
 	{"", "Mises à jour"},
@@ -99,6 +105,7 @@ var navItems = []navItem{
 var pageTitles = [][2]string{
 	{"Tableau de bord", "Booster automatique pour tous vos jeux"},
 	{"Paramètres", "Réglages appliqués automatiquement pendant vos parties"},
+	{"Overlay en jeu", "Une petite barre par-dessus le jeu : FPS, processeur, carte graphique, RAM"},
 	{"Jeux", "FPS Boost détecte vos jeux tout seul. Ajoutez ici ceux qui ne sont pas reconnus."},
 	{"Journal", "Tout ce que fait FPS Boost, en direct"},
 	{"Mises à jour", "FPS Boost se met à jour tout seul depuis GitHub"},
@@ -142,6 +149,27 @@ var toggles = []toggleDef{
 		func() bool { return cfg.AutoActivate }, func(v bool) { cfg.AutoActivate = v }},
 	{"Notifications", "Prévient quand un jeu est boosté ou qu'une mise à jour arrive",
 		func() bool { return cfg.Notifications }, func(v bool) { cfg.Notifications = v }},
+}
+
+var ovToggles = []toggleDef{
+	{"Ouvrir automatiquement en jeu", "L'overlay apparaît dès qu'un jeu est détecté (sinon : touche Inser)",
+		func() bool { return cfg.OverlayAuto }, func(v bool) { cfg.OverlayAuto = v }},
+	{"Afficher les températures", "Température du processeur et de la carte graphique",
+		func() bool { return cfg.OverlayTemps }, func(v bool) { cfg.OverlayTemps = v }},
+	{"Afficher la RAM", "Pourcentage de mémoire utilisée",
+		func() bool { return cfg.OverlayRAM }, func(v bool) { cfg.OverlayRAM = v }},
+}
+
+var posLabels = []string{"Haut gauche", "Haut droite", "Bas gauche", "Bas droite"}
+
+func toggleByID(id int) (*toggleDef, bool) {
+	if id >= idToggle0 && id < idToggle0+len(toggles) {
+		return &toggles[id-idToggle0], id-idToggle0 == len(toggles)-1
+	}
+	if id >= idOvToggle0 && id < idOvToggle0+len(ovToggles) {
+		return &ovToggles[id-idOvToggle0], id-idOvToggle0 == len(ovToggles)-1
+	}
+	return nil, false
 }
 
 // ---- Création de la fenêtre --------------------------------------------------
@@ -252,22 +280,30 @@ func createControls() {
 	for i := range toggles {
 		button(1, idToggle0+i, 246, 100+int32(i)*53, 618, 50)
 	}
+	// Overlay
+	button(2, idOvShow, 246, 196, 230, 38)
+	for i := range ovToggles {
+		button(2, idOvToggle0+i, 246, 284+int32(i)*53, 618, 50)
+	}
+	for i := range posLabels {
+		button(2, idOvPos0+i, 246+int32(i)*156, 476, 148, 34)
+	}
 	// Jeux
 	hEdit = child("EDIT", WS_TABSTOP|ES_AUTOHSCROLL, idEdit, 258, 133, 346, 20)
 	call(pSendMessageW, hEdit, WM_SETFONT, fNormal, 1)
 	call(pSendMessageW, hEdit, EM_SETCUEBANNER, 1, uintptr(unsafe.Pointer(w("Nom du jeu, ex : MonJeu.exe"))))
-	pageCtrls[2] = append(pageCtrls[2], hEdit)
-	button(2, idAdd, 626, 126, 110, 34)
-	button(2, idPick, 744, 126, 120, 34)
-	hGames = listbox(2, idGames, LBS_NOTIFY, 252, 276, 606, 242)
-	button(2, idRemove, 246, 534, 200, 34)
+	pageCtrls[3] = append(pageCtrls[3], hEdit)
+	button(3, idAdd, 626, 126, 110, 34)
+	button(3, idPick, 744, 126, 120, 34)
+	hGames = listbox(3, idGames, LBS_NOTIFY, 252, 276, 606, 242)
+	button(3, idRemove, 246, 534, 200, 34)
 	// Journal
-	hLog = listbox(3, idLog, LBS_NOSEL, 252, 108, 606, 422)
-	button(3, idOpenLog, 246, 546, 220, 32)
-	button(3, idClear, 476, 546, 120, 32)
+	hLog = listbox(4, idLog, LBS_NOSEL, 252, 108, 606, 422)
+	button(4, idOpenLog, 246, 546, 220, 32)
+	button(4, idClear, 476, 546, 120, 32)
 	// Mises à jour
-	button(4, idCheckUpd, 250, 236, 250, 40)
-	button(4, idGithub, 512, 236, 180, 40)
+	button(5, idCheckUpd, 250, 236, 250, 40)
+	button(5, idGithub, 512, 236, 180, 40)
 
 	refreshGames()
 }
@@ -283,7 +319,7 @@ func showPage(p int) {
 			call(pShowWindow, h, cmd)
 		}
 	}
-	if p == 3 && hLog != 0 {
+	if p == 4 && hLog != 0 {
 		n := call(pSendMessageW, hLog, LB_GETCOUNT, 0, 0)
 		if n > 0 {
 			call(pSendMessageW, hLog, LB_SETTOPINDEX, n-1, 0)
@@ -348,14 +384,19 @@ func paint(hwnd uintptr) {
 	case 1:
 		card(g, 230, 88, 650, 492)
 	case 2:
+		card(g, 230, 88, 650, 170)
+		card(g, 230, 272, 650, 316)
+		call(pGdipSetTextRenderingHint, g.g, 5)
+		pill(g.g, s(246), s(128), true)
+	case 3:
 		card(g, 230, 88, 650, 132)
 		box(g, 246, 126, 370, 34)
 		card(g, 230, 234, 650, 354)
 		box(g, 246, 272, 618, 250)
-	case 3:
+	case 4:
 		card(g, 230, 88, 650, 500)
 		box(g, 246, 104, 618, 430)
-	case 4:
+	case 5:
 		card(g, 230, 88, 650, 210)
 		card(g, 230, 312, 650, 276)
 	}
@@ -389,6 +430,13 @@ func paint(hwnd uintptr) {
 		paintHomeText(mem, title, sub)
 	case 1:
 	case 2:
+		drawText(mem, "APERÇU", fSection, cMuted, rc(246, 102, 860, 118), DT_SINGLELINE)
+		drawText(mem, "Touche  Inser  en jeu", fBold, cText, rc(492, 196, 864, 216), DT_SINGLELINE)
+		drawText(mem, "pour ouvrir ou fermer l'overlay", fSmall, cMuted, rc(492, 216, 864, 234), DT_SINGLELINE)
+		drawText(mem, "POSITION À L'ÉCRAN", fSection, cMuted, rc(246, 454, 860, 470), DT_SINGLELINE)
+		drawText(mem, "L'overlay s'affiche par-dessus les jeux en « Plein écran fenêtré » ou « Sans bordure ». En plein écran exclusif, il peut ne pas apparaître : changez ce réglage dans les options vidéo du jeu. Les clics passent au travers, il ne gêne jamais.",
+			fSmall, cMuted, rc(246, 520, 866, 584), DT_WORDBREAK)
+	case 3:
 		drawText(mem, "AJOUTER UN JEU", fSection, cMuted, rc(246, 102, 860, 118), DT_SINGLELINE)
 		drawText(mem, "Détectés automatiquement : Steam, Epic Games, Riot, Xbox, Ubisoft, EA, GOG, Rockstar, Battle.net, Amazon Games, itch.io et plus de 60 jeux populaires. Laissez le champ vide et cliquez sur « Jeu ouvert… » pour choisir un jeu en cours.",
 			fSmall, cMuted, rc(246, 168, 866, 214), DT_WORDBREAK)
@@ -396,8 +444,8 @@ func paint(hwnd uintptr) {
 		if len(cfg.CustomGames) == 0 {
 			drawText(mem, "Aucun jeu ajouté pour l'instant", fSmall, cMuted, rc(246, 534, 864, 568), DT_SINGLELINE|DT_VCENTER|DT_RIGHT)
 		}
-	case 3:
 	case 4:
+	case 5:
 		paintUpdateText(mem)
 	}
 
@@ -470,14 +518,35 @@ func paintHomeText(mem uintptr, title, sub string) {
 	if m.MemoryLoad >= 85 {
 		ramC = color{0xF5, 0x9E, 0x0B}
 	}
+	_ = timerC
+	sd := sensors()
+	comp := func(name string, use, temp float64, useOk, tempOk bool, hot float64) (string, string, color) {
+		c := cText
+		switch {
+		case tempOk:
+			if temp >= hot {
+				c = color{0xF5, 0x9E, 0x0B}
+			}
+			l := name
+			if useOk {
+				l += fmt.Sprintf(" · %.0f %%", use)
+			}
+			return l, fmt.Sprintf("%.0f °C", temp), c
+		case useOk:
+			return name, fmt.Sprintf("%.0f %%", use), c
+		}
+		return name, "—", cMuted
+	}
+	cl, cv, cc := comp("CPU", sd.CPUUse, sd.CPUTemp, sd.CPUUseOk, sd.CPUTempOk, 85)
+	gl, gv, gc := comp("GPU", sd.GPUUse, sd.GPUTemp, sd.GPUUseOk, sd.GPUTempOk, 83)
 	stats := []struct {
 		label, value string
 		c            color
 	}{
+		{cl, cv, cc},
+		{gl, gv, gc},
 		{fmt.Sprintf("RAM · %d GO", (m.TotalPhys+(1<<29))>>30), fmt.Sprintf("%d %%", m.MemoryLoad), ramC},
-		{"TIMER SYSTÈME", fmtMs(float64(cur)/10000) + " ms", timerC},
 		{"ALIMENTATION", power, powerC},
-		{"JEUX BOOSTÉS", itoa(cfg.GamesBoosted), cText},
 	}
 	for i, st := range stats {
 		x := 562 + int32(i%2)*167
@@ -562,6 +631,14 @@ func buttonText(id int) (icon, text string) {
 		return "", "Rechercher des mises à jour"
 	case idGithub:
 		return "", "Page GitHub"
+	case idOvShow:
+		if overlayVisible {
+			return "", "Masquer l'overlay"
+		}
+		return "", "Afficher l'overlay"
+	}
+	if id >= idOvPos0 && id < idOvPos0+len(posLabels) {
+		return "", posLabels[id-idOvPos0]
 	}
 	return "", ""
 }
@@ -611,7 +688,7 @@ func drawItem(d *DRAWITEMSTRUCT) {
 			f = fBold
 		}
 		drawText(mem, navItems[i].label, f, c, RECT{s(46), 0, W, H}, DT_SINGLELINE|DT_VCENTER)
-		if i == 4 && pendingUpdate != nil {
+		if i == 5 && pendingUpdate != nil {
 			g2 := newGfx(mem)
 			g2.ellipseColor(cAccent2, W-s(22), H/2-s(4), s(8), s(8))
 			g2.close()
@@ -635,8 +712,8 @@ func drawItem(d *DRAWITEMSTRUCT) {
 		drawText(mem, "", fIcon, cText, RECT{x, 0, x + s(22), H}, DT_SINGLELINE|DT_VCENTER)
 		drawText(mem, label, fPower, cText, RECT{x + s(26), 0, W, H}, DT_SINGLELINE|DT_VCENTER)
 
-	case id >= idToggle0 && id < idToggle0+len(toggles):
-		t := toggles[id-idToggle0]
+	case func() bool { t, _ := toggleByID(id); return t != nil }():
+		t, last := toggleByID(id)
 		on := t.get()
 		pw, ph := s(44), s(24)
 		px, py := W-pw-s(4), (H-ph)/2
@@ -653,7 +730,7 @@ func drawItem(d *DRAWITEMSTRUCT) {
 			kx = px + pw - s(3) - k
 		}
 		g.ellipseColor(cWhite, kx, py+s(3), k, k)
-		if id-idToggle0 < len(toggles)-1 {
+		if !last {
 			g.rectColor(cBorder, 0, H-1, W, 1)
 		}
 		g.close()
@@ -662,7 +739,7 @@ func drawItem(d *DRAWITEMSTRUCT) {
 
 	default:
 		c := cBtn
-		if id == idAdd || (id == idCheckUpd && pendingUpdate != nil) {
+		if id == idAdd || id == idOvShow || (id == idCheckUpd && pendingUpdate != nil) || id == idOvPos0+cfg.OverlayPos {
 			c = cAccent
 		}
 		if pressed {
@@ -671,14 +748,18 @@ func drawItem(d *DRAWITEMSTRUCT) {
 		g.roundColor(c, 0, 0, W, H, s(9))
 		g.close()
 		icon, label := buttonText(id)
-		lw := textWidth(mem, label, fBtn) + s(24)
+		iw := s(24)
+		if icon == "" {
+			iw = 0
+		}
+		lw := textWidth(mem, label, fBtn) + iw
 		x := (W - lw) / 2
 		off := int32(0)
 		if pressed {
 			off = 1
 		}
 		drawText(mem, icon, fIcon, cText, RECT{x, off, x + s(20), H + off}, DT_SINGLELINE|DT_VCENTER)
-		drawText(mem, label, fBtn, cText, RECT{x + s(24), off, W, H + off}, DT_SINGLELINE|DT_VCENTER)
+		drawText(mem, label, fBtn, cText, RECT{x + iw, off, W, H + off}, DT_SINGLELINE|DT_VCENTER)
 	}
 
 	call(pBitBlt, d.HDC, uintptr(d.RcItem.Left), uintptr(d.RcItem.Top), uintptr(W), uintptr(H), mem, 0, 0, SRCCOPY)
@@ -912,7 +993,7 @@ func trayMenu() {
 		cleanRAM("RAM nettoyée")
 	case idTrayUpdate:
 		showMain()
-		showPage(4)
+		showPage(5)
 		checkForUpdate(true)
 	case idTrayQuit:
 		quit()
@@ -938,6 +1019,7 @@ func hideToTray() {
 }
 
 func quit() {
+	showOverlay(false)
 	endBoost(false)
 	fpsStop()
 	call(pDestroyWindow, hwndMain)
@@ -971,16 +1053,32 @@ func onCommand(id, code int) {
 	switch {
 	case id >= idNav0 && id < idNav0+len(navItems):
 		showPage(id - idNav0)
-		if id-idNav0 == 4 && updState == updNone {
+		if id-idNav0 == 5 && updState == updNone {
 			checkForUpdate(false)
 		}
 	case id == idPower:
 		setBooster(!boosterOn)
-	case id >= idToggle0 && id < idToggle0+len(toggles):
-		t := toggles[id-idToggle0]
+	case func() bool { t, _ := toggleByID(id); return t != nil }():
+		t, _ := toggleByID(id)
 		t.set(!t.get())
 		saveConfig()
 		call(pInvalidateRect, buttons[id], 0, 0)
+		if id >= idOvToggle0 {
+			if overlayVisible {
+				renderOverlay()
+			}
+			call(pInvalidateRect, hwndMain, 0, 0)
+		}
+	case id == idOvShow:
+		showOverlay(!overlayVisible)
+		overlayAutoOpen = false
+	case id >= idOvPos0 && id < idOvPos0+len(posLabels):
+		cfg.OverlayPos = id - idOvPos0
+		saveConfig()
+		if overlayVisible {
+			renderOverlay()
+		}
+		refreshUI()
 	case id == idOptimize:
 		n := applyTweaks()
 		addLog(fmt.Sprintf("Windows optimisé : %d réglages appliqués", n))
@@ -1076,9 +1174,18 @@ func wndProc(hwnd, msg, wp, lp uintptr) (ret uintptr) {
 			if sess != nil {
 				trayTip()
 			}
+			if overlayVisible {
+				renderOverlay()
+			}
 			if call(pIsWindowVisible, hwnd) != 0 {
 				refreshStats()
 			}
+		}
+		return 0
+	case WM_HOTKEY:
+		if wp == hotkeyID {
+			showOverlay(!overlayVisible)
+			overlayAutoOpen = false
 		}
 		return 0
 	case WM_LAUNCHRAM:
@@ -1103,7 +1210,7 @@ func wndProc(hwnd, msg, wp, lp uintptr) (ret uintptr) {
 			showMain()
 			if balloonIsMaj {
 				balloonIsMaj = false
-				showPage(4)
+				showPage(5)
 				offerUpdate()
 			}
 		}

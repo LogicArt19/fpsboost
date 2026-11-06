@@ -50,11 +50,10 @@ var (
 	updLastCheck time.Time
 )
 
-const releaseNotes = "• Nouvelle interface avec menu : Accueil, Paramètres, Jeux, Journal, Mises à jour\n" +
-	"• Nettoyage complet de la RAM à chaque ouverture de FPS Boost (désactivable)\n" +
-	"• Bouton « Libérer la RAM » plus efficace : affiche les Mo libérés et la RAM avant/après\n" +
-	"• Grand compteur de FPS en direct sur l'accueil\n" +
-	"• Statut du booster et FPS toujours visibles dans le menu"
+const releaseNotes = "• Mini overlay en jeu : touche Inser pour l'ouvrir / le fermer\n" +
+	"• Overlay : FPS, processeur, carte graphique, RAM et températures\n" +
+	"• Nouvelle page « Overlay » : aperçu, position à l'écran, ouverture automatique\n" +
+	"• Températures et utilisation du CPU et du GPU sur l'accueil"
 
 // Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
 const WM_UPDATE_RESULT = WM_APP + 9
