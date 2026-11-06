@@ -159,6 +159,7 @@ func initToggles() {
 		tg("Pause des tâches de fond", "Indexation et préchargement Windows en pause : moins d'à-coups", &cfg.BgServices),
 		tg("Carte graphique dédiée", "Sur les PC à 2 cartes graphiques, force la plus puissante pour le jeu", &cfg.ForceDGPU),
 		tg("Alerte de surchauffe", "Prévient si la carte graphique ou le processeur chauffe trop", &cfg.HeatAlert),
+		tg("Économie hors du jeu", "Boost en pause quand le jeu est réduit ou en arrière-plan", &cfg.EcoBackground),
 		tg("RAM nettoyée à l'ouverture", "Libère la mémoire dès que vous ouvrez FPS Boost", &cfg.RamOnLaunch),
 		{"Lancer avec Windows", "Démarre tout seul, discrètement, près de l'horloge",
 			func() bool { return startupOn }, func(v bool) {
@@ -412,6 +413,8 @@ func rc(l, t, r, b int32) RECT { return RECT{s(l), s(t), s(r), s(b)} }
 
 func statusInfo() (dot color, title, sub string) {
 	switch {
+	case boosterOn && sess != nil && sess.paused:
+		return cAccent, "BOOST EN PAUSE  —  " + sess.Game, "Jeu en arrière-plan : économie d'énergie"
 	case boosterOn && sess != nil:
 		return cGreen, "BOOST ACTIF  —  " + sess.Game, "depuis " + sess.Start.Format("15:04") + "  ·  " + fmtDur(time.Since(sess.Start))
 	case boosterOn:
@@ -492,6 +495,9 @@ func paint(hwnd uintptr) {
 	st, st2 := "Booster désactivé", "Cliquez sur Activer"
 	if boosterOn && sess != nil {
 		st, st2 = "Boost actif", sess.Game
+		if sess.paused {
+			st = "Boost en pause"
+		}
 		if fpsValue > 0 {
 			st2 += "  ·  " + itoa(fpsValue) + " FPS"
 		}
@@ -520,9 +526,9 @@ func paint(hwnd uintptr) {
 		paintDiag(mem)
 	case pSettings:
 		drawText(mem, "PENDANT LE JEU", fSection, cMuted, rc(246, 100, 540, 116), DT_SINGLELINE)
-		drawText(mem, "DÉMARRAGE ET NOTIFICATIONS", fSection, cMuted, rc(577, 100, 870, 116), DT_SINGLELINE)
+		drawText(mem, "ÉNERGIE, DÉMARRAGE, NOTIFICATIONS", fSection, cMuted, rc(577, 100, 870, 116), DT_SINGLELINE)
 		drawText(mem, "Les réglages « pendant le jeu » s'activent au lancement de chaque jeu et sont retirés dès que vous le quittez : votre PC redevient exactement comme avant.",
-			fSmall, cMuted, rc(577, 456, 866, 560), DT_WORDBREAK)
+			fSmall, cMuted, rc(577, 514, 866, 578), DT_WORDBREAK)
 	case pOverlay:
 		drawText(mem, "APERÇU", fSection, cMuted, rc(246, 102, 860, 118), DT_SINGLELINE)
 		drawText(mem, "Touche  Inser  en jeu", fBold, cText, rc(492, 196, 864, 216), DT_SINGLELINE)

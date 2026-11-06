@@ -125,3 +125,67 @@ func capAdvice(h HistEntry) string {
 	}
 	return fmt.Sprintf("Conseil pour %s : limitez les FPS à environ %d dans les options du jeu (ou le panneau NVIDIA / AMD). Les images seront bien plus régulières et la latence plus basse.", h.Game, limit)
 }
+
+// ---- Économie d'énergie quand le jeu est en arrière-plan (3.3) -------------------------
+
+func foregroundPid() uint32 {
+	var pid uint32
+	if h := call(pGetForegroundWindow); h != 0 {
+		call(pGetWindowThreadProcessId, h, uintptr(unsafe.Pointer(&pid)))
+	}
+	return pid
+}
+
+func ecoCheck(s *Session) {
+	if !cfg.EcoBackground {
+		if s.paused {
+			resumeBoost(s)
+		}
+		return
+	}
+	now := time.Now()
+	if foregroundPid() == s.Pid {
+		s.lastFG = now
+		if s.paused {
+			resumeBoost(s)
+		}
+		return
+	}
+	if s.lastFG.IsZero() {
+		s.lastFG = now
+	}
+	if !s.paused && now.Sub(s.lastFG) > 10*time.Second {
+		pauseBoost(s)
+	}
+}
+
+// Le jeu n'est plus à l'écran : le PC repasse en mode normal (moins de consommation, moins de chaleur)
+func pauseBoost(s *Session) {
+	if s.PowerChanged && s.PrevScheme != "" {
+		setScheme(s.PrevScheme)
+	}
+	if s.OverlayChanged {
+		setOverlay(s.PrevOverlay)
+	}
+	if s.TimerSet {
+		setTimer(false)
+	}
+	s.paused = true
+	addLog("   Jeu en arrière-plan : boost en pause pour économiser l'énergie")
+	refreshUI()
+}
+
+func resumeBoost(s *Session) {
+	if s.PowerChanged && s.perfScheme != "" {
+		setScheme(s.perfScheme)
+	}
+	if s.OverlayChanged {
+		setOverlay(bestPerfOverlay)
+	}
+	if s.TimerSet {
+		setTimer(true)
+	}
+	s.paused = false
+	addLog("   Retour au jeu : boost réactivé")
+	refreshUI()
+}

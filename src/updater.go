@@ -50,13 +50,12 @@ var (
 	updLastCheck time.Time
 )
 
-const releaseNotes = "Version 3.2 — FLUIDITÉ\n" +
-	"• Plan d'alimentation anti-latence : aucun cœur du processeur en veille, turbo agressif,\n" +
-	"   pas de mise en veille de la carte graphique (PCIe), de l'USB (souris) ni du disque\n" +
-	"• RAM anti-saccades : le cache est vidé dès que la mémoire libre manque\n" +
-	"• Pause de l'indexation et du préchargement Windows pendant la partie\n" +
-	"• Mesure de la fluidité (régularité des images) sur l'accueil, l'overlay et l'historique\n" +
-	"• Conseil personnalisé de limite de FPS quand une partie manque de régularité"
+const releaseNotes = "Version 3.3 — ÉCONOMIE D'ÉNERGIE\n" +
+	"• Quand le jeu est réduit ou en arrière-plan plus de 10 s (Discord, navigateur…),\n" +
+	"   le boost se met en pause : le PC repasse en mode normal, consomme et chauffe moins\n" +
+	"• Dès que vous revenez dans le jeu, le boost se réactive instantanément\n\n" +
+	"Version 3.2 — FLUIDITÉ : plan anti-latence, RAM anti-saccades, pause des tâches de fond,\n" +
+	"mesure de la fluidité et conseil de limite de FPS"
 
 // Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
 const WM_UPDATE_RESULT = WM_APP + 9

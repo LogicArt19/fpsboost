@@ -1,6 +1,6 @@
 {
-  "version": 32,
-  "name": "3.2",
+  "version": 33,
+  "name": "3.3",
   "url": "https://github.com/LogicArt19/fpsboost/raw/main/release/FPSBoost.exe",
-  "notes": "• Plan d'alimentation anti-latence : processeur jamais en veille, turbo agressif, pas de veille carte graphique / USB / disque pendant le jeu\n• RAM anti-saccades : cache vidé dès que la mémoire libre manque\n• Indexation et préchargement Windows en pause pendant la partie\n• Mesure de la fluidité (accueil, overlay, historique) + conseil de limite de FPS"
+  "notes": "• Économie d'énergie : quand le jeu est réduit ou en arrière-plan plus de 10 s, le boost se met en pause (le PC consomme et chauffe moins)\n• Retour au jeu : boost réactivé instantanément\n• (3.2) Plan anti-latence, RAM anti-saccades, pause des tâches de fond, mesure de la fluidité"
 }

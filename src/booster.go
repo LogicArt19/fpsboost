@@ -77,6 +77,9 @@ type Session struct {
 	Bg             []bgRec
 
 	StoppedSvcs []string
+	paused      bool
+	lastFG      time.Time
+	perfScheme  string
 	Closed    []closedApp
 	toKill    []procEntry
 	killDue   time.Time
@@ -199,6 +202,7 @@ func boostPower(s *Session) {
 		return
 	}
 	if perf != "" && setScheme(perf) {
+		s.perfScheme = perf
 		s.PrevScheme = prev
 		s.PowerChanged = true
 		addLog("   Alimentation : performances maximales")
@@ -344,6 +348,7 @@ func tick() {
 			return
 		}
 		now := time.Now()
+		ecoCheck(sess)
 		if !sess.killDue.IsZero() && now.After(sess.killDue) {
 			sess.killDue = time.Time{}
 			killLeftovers(sess)

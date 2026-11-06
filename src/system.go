@@ -60,6 +60,7 @@ type Config struct {
 	CloseApps     []string
 	RelaunchApps  bool
 	BgServices    bool
+	EcoBackground bool
 	OverlayFluid  bool
 	Notifications bool
 	CustomGames   []string
@@ -69,7 +70,7 @@ type Config struct {
 
 var cfg = &Config{PowerPlan: true, TimerRes: true, RamClean: true, GamePriority: true, BgPriority: true,
 	AutoActivate: true, RamOnLaunch: true, Notifications: true, OverlayTemps: true, OverlayRAM: true,
-	OverlayLow: true, OverlayPing: true, ForceDGPU: true, HeatAlert: true, RelaunchApps: true, BgServices: true}
+	OverlayLow: true, OverlayPing: true, ForceDGPU: true, HeatAlert: true, RelaunchApps: true, BgServices: true, EcoBackground: true}
 
 func loadConfig() { loadJSON("config.json", cfg) }
 func saveConfig() { saveJSON("config.json", cfg) }
