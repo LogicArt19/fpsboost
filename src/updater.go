@@ -50,14 +50,12 @@ var (
 	updLastCheck time.Time
 )
 
-const releaseNotes = "Version 3.4 — PAGE FLUIDITÉ\n" +
-	"• Écran passé à sa fréquence maximale en un clic\n" +
-	"• Fréquence variable Windows (VRR) activée, aussi pour les jeux en fenêtré\n" +
-	"• Carte NVIDIA : limite de FPS idéale (fréquence écran − 3) et mode faible latence\n" +
-	"   réglés directement dans le pilote, en un clic, retirables à tout moment\n" +
-	"• Boutons pour ouvrir le panneau NVIDIA / AMD et réglages conseillés dans le jeu\n\n" +
-	"3.3 : boost en pause quand le jeu est en arrière-plan (économie d'énergie)\n" +
-	"3.2 : plan anti-latence, RAM anti-saccades, pause des tâches de fond, score de fluidité"
+const releaseNotes = "Version 3.5 — ANALYSE AUTOMATIQUE DE FLUIDITÉ\n" +
+	"• Pendant chaque partie, FPS Boost enregistre la charge de la carte graphique et du processeur,\n" +
+	"   les températures, la RAM et les programmes actifs au moment de chaque saccade\n" +
+	"• En fin de partie, il vous dit exactement ce qui limite la fluidité sur votre PC\n" +
+	"• Si un programme cause des saccades : bouton pour le fermer automatiquement en jeu\n\n" +
+	"3.4 : page Fluidité (Hz, VRR, limite de FPS et faible latence NVIDIA)"
 
 // Résultat transmis à l'interface : wp = 0 à jour, 1 erreur, 2 trouvée ; lp = 1 si vérification manuelle
 const WM_UPDATE_RESULT = WM_APP + 9

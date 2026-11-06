@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	appVersion    = 34
-	appVersionStr = "3.4"
+	appVersion    = 35
+	appVersionStr = "3.5"
 )
 
 func init() { runtime.LockOSThread() }
@@ -89,6 +89,7 @@ func main() {
 	loadConfig()
 	loadBackup()
 	loadHistory()
+	loadAnalysis()
 	initQPC()
 	startPinger()
 	enablePrivilege("SeProfileSingleProcessPrivilege")

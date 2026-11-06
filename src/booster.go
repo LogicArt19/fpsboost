@@ -250,6 +250,7 @@ func startBoost(p *procEntry) {
 	sess = s
 	saveJSON("session.json", s)
 	sessStutters = 0
+	resetAnalysis()
 	cfg.GamesBoosted++
 	saveConfig()
 	addLog("✔ BOOST ACTIF sur " + s.Game)
@@ -311,6 +312,7 @@ func endBoost(quiet bool) {
 		if adv := capAdvice(history[len(history)-1]); adv != "" {
 			addLog("► " + adv)
 		}
+		finishAnalysis(s.Game)
 	}
 	os.Remove(dataFile("session.json"))
 	sess = nil

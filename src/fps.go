@@ -307,11 +307,14 @@ func fpsUpdate() {
 				st++
 			}
 		}
+		ns := 0
 		for _, v := range newFT {
 			if v > med*2.5 && v > med+8 {
 				sessStutters++
+				ns++
 			}
 		}
+		lastSecStut = ns
 		span := float64(sum) / 60000
 		if span > 0 {
 			fpsStutterMin = int(float64(st)/span + 0.5)
@@ -321,7 +324,7 @@ func fpsUpdate() {
 			fpsFluid = clampInt(int(100*float32(l)/avg+0.5), 0, 100)
 		}
 	} else {
-		fpsFluid, fpsStutterMin = 0, 0
+		fpsFluid, fpsStutterMin, lastSecStut = 0, 0, 0
 	}
 	fpsLow1 = low1Of(recent)
 	if fpsValue > 0 {

@@ -39,6 +39,7 @@ const (
 	idFlVRR   = 172
 	idFlCap   = 173
 	idFlLat   = 174
+	idFlCulprit = 175
 
 	idDiagRun = 160
 	idDiagFix = 161
@@ -331,8 +332,9 @@ func createControls() {
 	button(pHome, idRestore, 662, 350, 202, 38)
 	// Fluidité
 	for i, id := range []int{idFlHz, idFlPanel, idFlVRR, idFlCap, idFlLat} {
-		button(pFluid, id, 696, 98+int32(i)*80+14, 168, 34)
+		button(pFluid, id, 696, 272+int32(i)*52+10, 168, 30)
 	}
+	button(pFluid, idFlCulprit, 696, 96, 168, 28)
 	// Diagnostic
 	button(pDiag, idDiagRun, 246, 548, 220, 34)
 	button(pDiag, idDiagFix, 478, 548, 250, 34)
@@ -403,6 +405,7 @@ func showPage(p int) {
 	if p == pFluid {
 		nvRefresh()
 	}
+	updateCulpritButton()
 	if p == pDiag && !diagDone {
 		runDiagnostic()
 		diagDone = true
@@ -468,9 +471,10 @@ func paint(hwnd uintptr) {
 	case pHome:
 		paintHomeShapes(g, dot)
 	case pFluid:
-		card(g, 230, 88, 650, 492)
+		card(g, 230, 88, 650, 162)
+		card(g, 230, 262, 650, 326)
 		for i := int32(1); i < 6; i++ {
-			g.rectColor(cBorder, s(246), s(98+i*80-6), s(618), 1)
+			g.rectColor(cBorder, s(246), s(272+i*52-3), s(618), 1)
 		}
 	case pDiag:
 		card(g, 230, 88, 650, 446)
@@ -544,8 +548,9 @@ func paint(hwnd uintptr) {
 	case pHome:
 		paintHomeText(mem, title, sub)
 	case pFluid:
+		paintAnalysis(mem)
 		for i, st := range fluidSteps() {
-			y := 98 + int32(i)*80
+			y := 272 + int32(i)*52
 			icon, c := "", cGreen
 			switch st.Status {
 			case diagWarn:
@@ -553,9 +558,9 @@ func paint(hwnd uintptr) {
 			case diagInfo:
 				icon, c = "", cInfo
 			}
-			drawText(mem, icon, fIconBig, c, rc(250, y+2, 278, y+26), DT_SINGLELINE|DT_VCENTER)
-			drawText(mem, st.Title, fBold, cText, rc(286, y+4, 686, y+24), DT_SINGLELINE|DT_END_ELLIPSIS)
-			drawText(mem, st.Detail, fSmall, cMuted, rc(286, y+24, 686, y+72), DT_WORDBREAK|DT_END_ELLIPSIS)
+			drawText(mem, icon, fIcon, c, rc(250, y+2, 278, y+22), DT_SINGLELINE|DT_VCENTER)
+			drawText(mem, st.Title, fBold, cText, rc(280, y+1, 686, y+19), DT_SINGLELINE|DT_END_ELLIPSIS)
+			drawText(mem, st.Detail, fSmall, cMuted, rc(280, y+19, 686, y+49), DT_WORDBREAK|DT_END_ELLIPSIS)
 		}
 	case pDiag:
 		paintDiag(mem)
@@ -750,7 +755,7 @@ func paintHistory(mem uintptr) {
 	maxRows := 19
 	if adv := capAdvice(history[len(history)-1]); adv != "" {
 		maxRows = 16
-		drawText(mem, "\uE82F", fIcon, cWarn, rc(246, 488, 270, 506), DT_SINGLELINE)
+		drawText(mem, "", fIcon, cWarn, rc(246, 488, 270, 506), DT_SINGLELINE)
 		drawText(mem, adv, fSmall, cText, rc(272, 488, 866, 544), DT_WORDBREAK)
 	}
 	row := 0
@@ -812,6 +817,9 @@ func paintUpdateText(mem uintptr) {
 }
 
 func buttonText(id int) (icon, text string) {
+	if id == idFlCulprit {
+		return "", "Fermer " + prettyName(culpritApp()) + " en jeu"
+	}
 	if id >= idFlHz && id <= idFlLat {
 		return fluidButtonText(id)
 	}
@@ -954,7 +962,7 @@ func drawItem(d *DRAWITEMSTRUCT) {
 
 	default:
 		c := cBtn
-		if id == idAdd || id == idAppAdd || id == idOvShow || id == idDiagFix || id == idFlCap || id == idFlLat || id == idFlHz ||
+		if id == idAdd || id == idAppAdd || id == idOvShow || id == idDiagFix || id == idFlCap || id == idFlLat || id == idFlHz || id == idFlCulprit ||
 			(id == idCheckUpd && pendingUpdate != nil) || id == idOvPos0+cfg.OverlayPos {
 			c = cAccent
 		}
@@ -1196,6 +1204,8 @@ func onCommand(id, code int) {
 		}
 	case id >= idFlHz && id <= idFlLat:
 		fluidAction(id)
+	case id == idFlCulprit:
+		closeCulprit()
 	case id == idDiagRun:
 		runDiagnostic()
 		refreshUI()
@@ -1303,13 +1313,14 @@ func wndProc(hwnd, msg, wp, lp uintptr) (ret uintptr) {
 		case 2:
 			visible := call(pIsWindowVisible, hwnd) != 0
 			lvl := int32(0)
-			if visible || overlayVisible {
+			if visible || overlayVisible || (sess != nil && !sess.paused) {
 				lvl = 2
 			} else if sess != nil {
 				lvl = 1
 			}
 			setSensorsWanted(lvl)
 			fpsUpdate()
+			recordSample()
 			trayTick++
 			if sess != nil && trayTick%3 == 0 {
 				trayTip()
@@ -1375,4 +1386,30 @@ func wndProc(hwnd, msg, wp, lp uintptr) (ret uintptr) {
 		return 0
 	}
 	return call(pDefWindowProcW, hwnd, msg, wp, lp)
+}
+
+func paintAnalysis(mem uintptr) {
+	drawText(mem, "ANALYSE DE VOTRE DERNIÈRE PARTIE", fSection, cMuted, rc(246, 100, 690, 116), DT_SINGLELINE)
+	if lastAnalysis == nil {
+		drawText(mem, "Jouez une partie d'au moins 2 minutes avec le booster activé : FPS Boost enregistre la charge de la carte graphique et du processeur, les températures, la RAM et les programmes actifs pendant chaque saccade, puis vous dit exactement ce qui limite la fluidité sur votre PC.",
+			fSmall, cText, rc(246, 124, 866, 244), DT_WORDBREAK)
+		return
+	}
+	a := lastAnalysis
+	if culpritApp() == "" {
+		drawText(mem, a.Game+"  ·  "+a.Date.Format("02/01 15:04"), fSmall, cMuted, rc(560, 100, 866, 116), DT_SINGLELINE|DT_RIGHT|DT_END_ELLIPSIS)
+	}
+	for i, f := range a.Findings {
+		y := 124 + int32(i)*42
+		icon, c := "", cGreen
+		switch f.Severity {
+		case 2:
+			icon, c = "", cWarn
+		case 1:
+			icon, c = "", cInfo
+		}
+		drawText(mem, icon, fIcon, c, rc(250, y, 276, y+18), DT_SINGLELINE|DT_VCENTER)
+		drawText(mem, f.Title, fBold, cText, rc(280, y-1, 866, y+17), DT_SINGLELINE|DT_END_ELLIPSIS)
+		drawText(mem, f.Detail, fSmall, cMuted, rc(280, y+17, 866, y+41), DT_WORDBREAK|DT_END_ELLIPSIS)
+	}
 }
