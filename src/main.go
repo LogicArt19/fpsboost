@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	appVersion    = 24
-	appVersionStr = "2.4"
+	appVersion    = 25
+	appVersionStr = "2.5"
 )
 
 func init() { runtime.LockOSThread() }
@@ -85,6 +85,7 @@ func main() {
 		}
 	}
 
+	makeSelfLight()
 	loadConfig()
 	loadBackup()
 	enablePrivilege("SeProfileSingleProcessPrivilege")

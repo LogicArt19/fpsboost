@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -256,6 +257,9 @@ func startSensors() {
 		cpuUsage()
 		for {
 			time.Sleep(time.Second)
+			if atomic.LoadInt32(&sensorsWanted) == 0 {
+				continue // rien n'affiche les capteurs : pause, 0 % CPU
+			}
 			var d SensorData
 			d.CPUUse, d.CPUUseOk = cpuUsage()
 

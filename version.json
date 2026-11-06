@@ -1,6 +1,6 @@
 {
-  "version": 24,
-  "name": "2.4",
+  "version": 25,
+  "name": "2.5",
   "url": "https://github.com/LogicArt19/fpsboost/raw/main/release/FPSBoost.exe",
-  "notes": "• Mini overlay en jeu : touche Inser pour l'ouvrir / le fermer\n• Overlay : FPS, processeur, carte graphique, RAM et températures\n• Nouvelle page « Overlay » : aperçu, position à l'écran, ouverture auto\n• Températures CPU et GPU sur l'accueil"
+  "notes": "• FPS Boost encore plus léger : mode efficacité Windows + priorité basse, il passe toujours derrière votre jeu\n• Capteurs en pause quand rien ne les affiche\n• Sa propre consommation (CPU et mémoire) affichée dans le menu"
 }

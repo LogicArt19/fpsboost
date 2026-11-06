@@ -80,6 +80,7 @@ var (
 	msgTaskbarCreated                                     uintptr
 	startupOn                                             bool
 	logLines                                              []string
+	trayTick                                              int
 	pDrawIconEx                                           = modUser32.NewProc("DrawIconEx")
 	cSide                                                 = color{0x10, 0x12, 0x19}
 	cNavActive                                            = color{0x1D, 0x21, 0x2E}
@@ -418,6 +419,11 @@ func paint(hwnd uintptr) {
 	} else if boosterOn {
 		st, st2 = "Booster activé", "En attente d'un jeu…"
 	}
+	if lastSelfWall.IsZero() {
+		updateSelfUsage()
+	}
+	drawText(mem, "Consommation de FPS Boost", fSmall, cMuted, rc(14, 466, 205, 484), DT_SINGLELINE)
+	drawText(mem, strings.Replace(fmt.Sprintf("%.1f %% CPU  ·  %.0f Mo", selfCPU, selfMemMB), ".", ",", 1), fBold, cText, rc(14, 484, 205, 504), DT_SINGLELINE)
 	drawText(mem, st, fBold, cText, rc(42, 516, 192, 534), DT_SINGLELINE|DT_END_ELLIPSIS)
 	drawText(mem, st2, fSmall, cMuted, rc(24, 540, 192, 576), DT_WORDBREAK|DT_END_ELLIPSIS)
 
@@ -1170,9 +1176,15 @@ func wndProc(hwnd, msg, wp, lp uintptr) (ret uintptr) {
 			checkForUpdate(false)
 		}
 		if wp == 2 {
+			visible := call(pIsWindowVisible, hwnd) != 0
+			setSensorsWanted(visible || overlayVisible)
 			fpsUpdate()
-			if sess != nil {
+			trayTick++
+			if sess != nil && trayTick%3 == 0 {
 				trayTip()
+			}
+			if visible {
+				updateSelfUsage()
 			}
 			if overlayVisible {
 				renderOverlay()
